@@ -4,4 +4,4 @@
 *.egg-info
 
 # data
-src/data/lfric/raw
+src/data/
