@@ -63,21 +63,21 @@ GROUPS = {
             "shj",
             "dhj",
             "camembert_case1_gj1214b",
-            "camembert_case1_k2_18b",
+            "camembert_case1_k2-18b",
         ),
     ),
     "gr": Group(
         title="Grey Radiative Transfer",
         simulations=(
             "camembert_case2_gj1214b",
-            "camembert_case2_k2_18b",
+            "camembert_case2_k2-18b",
         ),
     ),
     "rt": Group(
         title="Multiband Radiative Transfer",
         simulations=(
             "camembert_case3_gj1214b",
-            "camembert_case3_k2_18b",
+            "camembert_case3_k2-18b",
         ),
     ),
 }
@@ -129,9 +129,9 @@ SIMULATIONS = {
         proc_fname_suffix="sigma_p",
         group="rt",
     ),
-    "camembert_case3_k2_18b": Simulation(
+    "camembert_case3_k2-18b": Simulation(
         title="CAMEMBERT - Case 3 - K2-18b",
-        planet="camembert_k2_18b",
+        planet="camembert_k2-18b",
         resolution="C24",
         kw_plt={"color": "C1"},
         timestep=120,

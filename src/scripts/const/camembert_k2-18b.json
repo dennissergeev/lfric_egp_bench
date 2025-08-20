@@ -28,5 +28,10 @@
         "name": "dry_air_molecular_weight",
         "units": "kg mol-1",
         "value": 0.004801
+    },
+    {
+        "name": "domain_height",
+        "units": "m",
+        "value": 1e6
     }
 ]

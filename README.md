@@ -1,1 +1,1 @@
-LFRic runs for the CAMEMBERT project.
+LFRic for extrasolar giant planets
