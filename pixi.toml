@@ -1,0 +1,20 @@
+[workspace]
+authors = ["Denis Sergeev <dennis.sergeev@gmail.com>"]
+channels = ["conda-forge"]
+name = "camembert_proj"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = ">=3.13.5,<3.14"
+ipykernel = ">=6.30.1,<7"
+iris = ">=3.13.0,<4"
+aeolus = ">=24.11.1.2,<25"
+matplotlib = ">=3.10.5,<4"
+pandas = ">=2.3.1,<3"
+f90nml = ">=1.4.4,<2"
+
+[pypi-dependencies]
+ncdump-rich = ">=0.5.2, <0.6"
