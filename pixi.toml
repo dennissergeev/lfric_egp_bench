@@ -1,7 +1,7 @@
 [workspace]
 authors = ["Denis Sergeev <dennis.sergeev@gmail.com>"]
 channels = ["conda-forge"]
-name = "camembert_proj"
+name = "lfric_egp_bench"
 platforms = ["osx-arm64"]
 version = "0.1.0"
 

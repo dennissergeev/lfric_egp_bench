@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 """Common objects in the lfric_hj_bench_code project."""
-from dataclasses import dataclass, field
 
-# External modules
-from aeolus.model import lfric, um
+from dataclasses import dataclass, field
 
 # Local modules
 import paths
 
+# External modules
+from aeolus.model import lfric, um
+
 
 @dataclass
-class HJModel:
-    """LFRic simulation details."""
+class BenchModel:
+    """Simulation details."""
 
     title: str
     planet: tuple
@@ -22,7 +23,7 @@ class HJModel:
 
 
 MODELS = {
-    "um": HJModel(
+    "um": BenchModel(
         model=um,
         title="UM",
         data_proc=paths.results_proc_um,
@@ -33,7 +34,7 @@ MODELS = {
             "dash_capstyle": "round",
         },
     ),
-    "lfric": HJModel(
+    "lfric": BenchModel(
         model=lfric,
         title="LFRic-Atmosphere",
         data_proc=paths.results_proc_lfric,
@@ -123,7 +124,7 @@ SIMULATIONS = {
         planet="camembert_gj1214b",
         resolution="C24",
         kw_plt={"color": "C0"},
-        timestep=1200,
+        timestep=120,
         time_mean_period=1000,
         proc_fname_suffix="sigma_p",
         group="rt",
@@ -133,7 +134,7 @@ SIMULATIONS = {
         planet="camembert_k2_18b",
         resolution="C24",
         kw_plt={"color": "C1"},
-        timestep=450,
+        timestep=120,
         time_mean_period=1000,
         proc_fname_suffix="sigma_p",
         group="rt",
