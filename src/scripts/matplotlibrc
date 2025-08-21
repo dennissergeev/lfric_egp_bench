@@ -1,0 +1,19 @@
+# My custom matplotlib style sheet
+
+mathtext.default : regular # The default font to use for math.
+
+font.size : 8.0
+axes.titlepad : 4.0
+axes.titleweight : "bold"
+axes.labelsize : "small"
+
+figure.titleweight : "bold"
+figure.figsize : 7, 3.5   # figure size in inches
+figure.dpi : 200      # figure dots per inch
+figure.facecolor : (1, 1, 1, 1)
+
+savefig.format : pdf      # png, ps, pdf, svg
+savefig.bbox : tight
+
+legend.labelcolor : linecolor
+hatch.linewidth : 0.1

@@ -3,48 +3,7 @@
 
 from dataclasses import dataclass, field
 
-# Local modules
-import paths
-
-# External modules
-from aeolus.model import lfric, um
-
-
-@dataclass
-class BenchModel:
-    """Simulation details."""
-
-    title: str
-    planet: tuple
-    timestep: int
-    c_num: int
-    vert_lev: str
-    kw_plt: dict = field(default_factory=dict)
-
-
-MODELS = {
-    "um": BenchModel(
-        model=um,
-        title="UM",
-        data_proc=paths.results_proc_um,
-        data_raw=paths.results_raw_um,
-        kw_plt={
-            "linestyle": "--",
-            "linewidth": 0.75,
-            "dash_capstyle": "round",
-        },
-    ),
-    "lfric": BenchModel(
-        model=lfric,
-        title="LFRic-Atmosphere",
-        data_proc=paths.results_proc_lfric,
-        data_raw=paths.results_raw_lfric,
-        kw_plt={
-            "linestyle": "-",
-            "linewidth": 1.25,
-        },
-    ),
-}
+PROJECT = "lfric_egp_bench"
 
 
 @dataclass
@@ -67,7 +26,7 @@ GROUPS = {
         ),
     ),
     "gr": Group(
-        title="Grey Radiative Transfer",
+        title="Double-Grey Radiative Transfer",
         simulations=(
             "camembert_case2_gj1214b",
             "camembert_case2_k2-18b",
@@ -84,59 +43,43 @@ GROUPS = {
 
 
 @dataclass
-class Simulation:
-    """LFRic simulation details."""
+class Experiment:
+    """Experiment details."""
 
     title: str
     planet: tuple
-    timestep: int
-    time_mean_period: int
-    resolution: int
-    vert_lev: str
-    proc_fname_suffix: str
     group: str
-    kw_plt: dict = field(default_factory=dict)
 
 
-SIMULATIONS = {
-    "shj": Simulation(
+EXPERIMENTS = {
+    "shj": Experiment(
         title="Shallow Hot Jupiter",
         planet="shj",
-        resolution="C24",
-        kw_plt={"color": "C0"},
-        timestep=1200,
-        time_mean_period=1000,
-        proc_fname_suffix="sigma_p",
         group="tf",
     ),
-    "dhj": Simulation(
+    "dhj": Experiment(
         title="Deep Hot Jupiter",
         planet="dhj",
-        resolution="C24",
-        kw_plt={"color": "C1"},
-        timestep=120,
-        time_mean_period=1000,
-        proc_fname_suffix="sigma_p",
         group="tf",
     ),
-    "camembert_case3_gj1214b": Simulation(
+    "camembert_case2_gj1214b": Experiment(
+        title="CAMEMBERT - Case 2 - GJ 1214b",
+        planet="camembert_gj1214b",
+        group="gr",
+    ),
+    "camembert_case2_k2-18b": Experiment(
+        title="CAMEMBERT - Case 2 - K2-18b",
+        planet="camembert_k2-18b",
+        group="gr",
+    ),
+    "camembert_case3_gj1214b": Experiment(
         title="CAMEMBERT - Case 3 - GJ 1214b",
         planet="camembert_gj1214b",
-        resolution="C24",
-        kw_plt={"color": "C0"},
-        timestep=120,
-        time_mean_period=1000,
-        proc_fname_suffix="sigma_p",
         group="rt",
     ),
-    "camembert_case3_k2-18b": Simulation(
+    "camembert_case3_k2-18b": Experiment(
         title="CAMEMBERT - Case 3 - K2-18b",
         planet="camembert_k2-18b",
-        resolution="C24",
-        kw_plt={"color": "C1"},
-        timestep=120,
-        time_mean_period=1000,
-        proc_fname_suffix="sigma_p",
         group="rt",
     ),
 }

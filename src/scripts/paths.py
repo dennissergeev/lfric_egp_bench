@@ -16,6 +16,7 @@ scripts = src / "scripts"
 
 # Absolute path to the `src/figures` folder (contains figure output)
 figures = src / "figures"
+drafts = figures / "drafts"
 
 # Constants
 const = scripts / "const"
