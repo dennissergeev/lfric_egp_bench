@@ -62,6 +62,16 @@ EXPERIMENTS = {
         planet="dhj",
         group="tf",
     ),
+    "camembert_case1_gj1214b": Experiment(
+        title="CAMEMBERT - Case 1 - GJ 1214b",
+        planet="camembert_gj1214b",
+        group="tf",
+    ),
+    "camembert_case1_k2-18b": Experiment(
+        title="CAMEMBERT - Case 1 - K2-18b",
+        planet="camembert_k2-18b",
+        group="tf",
+    ),
     "camembert_case2_gj1214b": Experiment(
         title="CAMEMBERT - Case 2 - GJ 1214b",
         planet="camembert_gj1214b",
