@@ -6,8 +6,10 @@ font.size : 8.0
 axes.titlepad : 4.0
 axes.titleweight : "bold"
 axes.labelsize : "small"
+axes.titlesize : "medium"
 
 figure.titleweight : "bold"
+figure.titlesize : "medium"
 figure.figsize : 7, 3.5   # figure size in inches
 figure.dpi : 200      # figure dots per inch
 figure.facecolor : (1, 1, 1, 1)
