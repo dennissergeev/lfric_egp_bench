@@ -1,1 +1,1 @@
-LFRic for extrasolar giant planets
+LFRic for extrasolar hot giant planets
