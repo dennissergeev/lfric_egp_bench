@@ -1,0 +1,6 @@
+<field_definition>
+    <field_group id="diagnostic_fields" prec="8" operation="instant" enabled=".TRUE.">
+        <field id="radiation__sw_net_toa" name="sw_net_toa" long_name="toa_net_shortwave_flux"
+            unit="W m-2" domain_ref="face"> radiation__sw_direct_toa - radiation__sw_up_toa </field>
+    </field_group>
+</field_definition>

@@ -1,0 +1,11 @@
+<!-- Output lat-lon domain definitions  -->
+<domain_definition>
+  <domain id="latlon1_domain" ni_glo="144" nj_glo="90" type="rectilinear" nvertex="1">
+    <generate_rectilinear_domain />
+    <interpolate_domain order="1" />
+  </domain>
+  <domain id="latlon2_domain" ni_glo="144" nj_glo="90" type="rectilinear" nvertex="1">
+    <generate_rectilinear_domain />
+    <interpolate_domain order="2" />
+  </domain>
+</domain_definition>

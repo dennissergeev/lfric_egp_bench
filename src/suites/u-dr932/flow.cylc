@@ -1,0 +1,218 @@
+#!jinja2
+{# ==================================== #}
+{# Set calendar and isodatetime command #}
+{# ==================================== #}
+{% set ISODATETIME = "isodatetime --calendar=" ~ "gregorian" %}
+{# ==================================== #}
+{# Set lfric_atm compute resources      #}
+{# ==================================== #}
+{% set LPPN = 128 %}
+{% set LFRIC_NODES = (TOTAL_RANKS_REQ/LPPN) | round(0, 'ceil') | int %}
+
+# Machine specific settings
+{% if EX_HOST == 'ex' %}
+# Monsoon
+  {% set SPACK = '/projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
+  {% set SHARED_QUEUE = 'collabshared' %}
+  {% set RUN_QUEUE = 'collab' %}
+{% else %}
+# Met Office ex1a
+  {% set SPACK = '/common/internal/spack/ngms' %}
+  {% set SHARED_QUEUE = 'shared' %}
+  {% set RUN_QUEUE = 'normal' %}
+{% endif %}
+
+[scheduler]
+    UTC mode = True
+    install = dependencies.yaml
+
+[scheduling]
+    cycling mode        = "gregorian"
+    initial cycle point = {{EXPT_START}}
+    stop after cycle point = +{{EXPT_RUNLEN}}-{{EXPT_RESUB}}
+    runahead limit      = P1D
+
+    [[graph]]
+       # Initial cycle point
+       R1 = """
+          {{ '' }}
+
+          {# Build executable, if required #}
+          {% if BUILD_LFRIC %}
+            extract => build_mesh => generate_mesh
+            extract => build_lfric_atm => lfric_atm
+          {% else %} {# Not building execs #}
+            build_mesh => generate_mesh
+          {% endif %} {# Test on build #}
+          generate_mesh => lfric_atm
+       """
+
+       # Following cycle points
+       {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
+
+{# ############################## RUNTIME ################################ #}
+
+[runtime]
+    [[root]]
+        env-script = eval $(rose task-env)
+        script = "rose task-run --verbose"
+        [[[events]]]
+            {# mail events = submission failed, submission timeout, submission retry, retry, failed, timeout #}
+            submission timeout = PT3H # 12 hours
+            execution timeout  = PT3H  # 3 hours
+        [[[environment]]]
+            ROSE_ORIG_HOST={{ ROSE_ORIG_HOST }}
+            SOURCE_ROOT = $CYLC_WORKFLOW_SHARE_DIR/source
+            OUTPUT_ROOT = $CYLC_WORKFLOW_SHARE_DIR/output
+            DESTINATION_DIRECTORY = $OUTPUT_ROOT
+            SUITE_NAME = $CYLC_WORKFLOW_NAME
+            MESH_DIR = $OUTPUT_ROOT/meshes
+            MESH_RES = {{ LFRIC_RES[:-3] }}
+            PHYSICS_ROOT=$SOURCE_ROOT
+            APPS_ROOT_DIR = $SOURCE_ROOT/lfric_apps
+            CORE_ROOT_DIR = $SOURCE_ROOT/lfric_core
+            LAUNCH_SCRIPT = $APPS_ROOT_DIR/rose-stem/site/meto/common/bin
+            VN = {{ VN }}
+
+    [[EX1A]]
+    {% if COMPILER == 'cce' %}
+        pre-script = """
+                        module use {{SPACK}}
+                        module switch PrgEnv-cray PrgEnv-cray/8.4.0
+                        module load cpe/23.05
+                        module switch cce cce/15.0.0
+                        module load lfric-cray/15.0.0/3.1 || true
+                        ulimit -s unlimited -c unlimited
+                        ulimit -a
+                        module list 2>&1
+                        """
+    {% else %}
+        pre-script = """
+                        module use {{SPACK}}
+                        module switch cpe/22.11 cpe/23.05
+                        module load PrgEnv-gnu
+                        module load gcc/12.2.0
+                        module load lfric-gnu/12.2.0/3.1 || true
+                        ulimit -s unlimited -c unlimited
+                        ulimit -a
+                        module list 2>&1
+                        """
+    {% endif %}
+        platform = {{ EX_HOST }}
+        [[[environment]]]
+            BIG_DATA_DIR = '/data/users/lfricadmin/data'
+            BUILD_ROOT = ${TMPDIR}
+            CORES_PER_NODE = {{LPPN}}
+            HYPERTHREADS = 1
+            NUMA_REGIONS_PER_NODE = 2
+            RUN_METHOD = mpiexec
+            TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
+
+    [[BUILD]]
+        inherit = EX1A
+        script = "rose task-run --app-key=build"
+        [[[environment]]]
+            COMPILER = {{COMPILER}}
+            PROFILE = 'production'
+            TARGET = build
+            PSYCLONE_TRANSFORMATION = meto-ex1a
+            UM_FCM_TARGET_PLATFORM = meto-ex1a
+            LFRIC_TARGET_PLATFORM = meto-ex1a
+            MAKE_THREADS = 6
+            RDEF_PRECISION = 32
+            R_TRAN_PRECISION = 32
+            R_BL_PRECISION = 32
+            R_SOLVER_PRECISION = 32
+            R_PHYS_PRECISION = 64
+            PRE_PROCESS_MACROS = ""
+        [[[directives]]]
+            -l select=1:ncpus=24:mem=40GB:tmpsize=12GB
+            -l walltime=01:00:00
+            -q={{SHARED_QUEUE}}
+
+
+    [[extract]]
+        inherit = EX1A
+        script = "rose task-run --app-key=extract"
+        [[[environment]]]
+            MIRROR_LOC = {{ MIRROR_LOC }}
+{% if USE_MIRRORS %}
+            ROSE_APP_COMMAND_KEY = mirrors
+{% elif USE_TOKENS %}
+            ROSE_APP_COMMAND_KEY = tokens
+{% endif %}
+        [[[directives]]]
+            -l select=1:ncpus=1:mem=6GB:tmpsize=6GB
+            -l walltime=00:10:00
+            -q={{SHARED_QUEUE}}
+
+
+    [[build_mesh]]
+        inherit = BUILD
+        execution time limit = PT10M
+        [[[environment]]]
+            SOURCE_DIRECTORY = $CORE_ROOT_DIR/mesh_tools
+            WORKING_DIR = $BUILD_ROOT/mesh
+            BIN_DIR = $OUTPUT_ROOT/bin/mesh
+
+
+    [[build_lfric_atm]]
+        inherit = BUILD
+        execution time limit = PT1H
+        [[[environment]]]
+            SOURCE_DIRECTORY = $APPS_ROOT_DIR/applications/lfric_atm
+            WORKING_DIR = $BUILD_ROOT/lfric_atm
+            BIN_DIR = $OUTPUT_ROOT/bin/lfric_atm
+
+
+    [[generate_mesh]]
+        inherit = EX1A
+        script = "rose task-run --app-key=mesh"
+        execution time limit = PT10M
+        [[[environment]]]
+            BIN_DIR = $OUTPUT_ROOT/bin/mesh
+            ROSE_APP_OPT_CONF_KEYS = {{LFRIC_RES}}
+            OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
+        [[[directives]]]
+            -l select=1:ncpus=1:mem=6GB:tmpsize=6GB
+            -l walltime=00:10:00
+            -q={{SHARED_QUEUE}}
+
+
+    [[lfric_atm]]
+        inherit = EX1A
+        script = """
+            echo "====Forecast times===="
+            echo "Forecast start date="${STARTDATE}
+            echo "Forecast starttime="${STARTTIME}
+            echo "Forecast STOPTIME="${STOPTIME}
+            echo "Forecast TIME_ORIGIN="${TIME_ORIGIN}
+            echo "Forecast RESTART_READ="${RESTART_READ}
+            echo "Forecast RESTART_START="${RESTART_START}
+            echo "Forecast RESTART_STOP="${RESTART_STOP}
+            echo "====Computational resources===="
+            echo "TOTAL_RANKS_REQ="${TOTAL_RANKS_REQ}
+            echo "CORES_PER_NODE="${CORES_PER_NODE}
+            mkdir -p $ROSE_DATA/History_Data
+            rose task-run --app-key=lfric_atm
+        """
+        execution time limit = {{LFRIC_CPU}}
+        [[[environment]]]
+            DT = {{EXPT_DT}}
+            TARGET_PLATFORM = meto-ex1a
+            METADATA = $APPS_ROOT_DIR/applications/lfric_atm/metadata
+            BIN_DIR = $OUTPUT_ROOT/bin/lfric_atm
+	        STARTDATE = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
+            STARTTIME = $({{ISODATETIME}} --as-total=s {{EXPT_START}} ref)
+            STOPTIME = $({{ISODATETIME}} --as-total=s --offset2={{EXPT_RESUB}} {{EXPT_START}} ref)
+            TIME_ORIGIN = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
+            RESTART_READ = $(if [ $CYLC_TASK_CYCLE_POINT = $CYLC_WORKFLOW_INITIAL_CYCLE_POINT ]; then echo ".false."; else echo ".true."; fi)
+            RESTART_WRITE = .true.
+            RESTART_START = $(bc <<< $STARTTIME/$DT+1)
+            RESTART_STOP = $(bc <<< $STOPTIME/$DT)
+
+            ROSE_APP_OPT_CONF_KEYS = {{CASE_SETUP}} {{PHYSICS_CONF}} {{LFRIC_LEVS}}
+            TASK_OUTPUT_DIR = $OUTPUT_ROOT/lfric_atm
+        [[[directives]]]
+            -l select={{LFRIC_NODES}}
+            -q={{RUN_QUEUE}}

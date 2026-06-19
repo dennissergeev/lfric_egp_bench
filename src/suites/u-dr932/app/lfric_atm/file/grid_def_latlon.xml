@@ -1,0 +1,11 @@
+<!-- Output lat-lon grid definitions -->
+<grid_definition>
+  <grid id="fl_latlon1">
+    <domain domain_ref="latlon1_domain" />
+    <axis axis_ref="vert_axis_full_levels" />
+  </grid>
+  <grid id="hl_latlon1">
+    <domain domain_ref="latlon1_domain" />
+    <axis axis_ref="vert_axis_half_levels" />
+  </grid>
+</grid_definition>

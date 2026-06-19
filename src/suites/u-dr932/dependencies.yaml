@@ -1,0 +1,49 @@
+##############################################################################
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+# This file contains a list of all linked external repositories containing code
+# and data required to build lfric applications and run the entire test suite
+#
+# Each section is the name of the repository
+# source: Is either the url to the repository (the upstream or
+#         a fork) or a path to a local clone with format `host:/path/to/clone`
+# ref: Is a valid git reference. This can either be a commit hash, a tag or a
+#      branch name
+#
+# Multiple branches can also be set, fork example:
+#
+# lfric_apps:
+#     - source: git@github.com:MetOffice/lfric_apps.git
+#       ref: 2025.12.1
+#     - source: git@github.com:my_fork/lfric_apps.git
+#       ref: my_branch
+#
+# It is up to the user to ensure these merge cleanly
+
+casim:
+    source: git@github.com:MetOffice/casim.git
+    ref: 2026.03.1
+
+jules:
+    source: git@github.com:MetOffice/jules.git
+    ref: 2026.03.1
+
+lfric_apps:
+    - source: git@github.com:tommbendall/lfric_apps.git
+      ref: 4d8b92147dd938318f0e064e5ad4ed632f8898bf
+    #   ref: TBendall/deep_hot_jupiter_forcing
+
+lfric_core:
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 2026.03.1
+
+socrates:
+    source: git@github.com:MetOffice/socrates.git
+    ref: 2026.03.1
+
+ukca:
+    source: git@github.com:MetOffice/ukca.git
+    ref: 2026.03.1
