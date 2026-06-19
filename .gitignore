@@ -1,7 +1,7 @@
 # Project-specific
 src/data/
 src/figures/drafts
-
+!src/suites/*/app/build
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
