@@ -1,0 +1,21 @@
+- name: gravity
+  units: m s-2
+  value: 1.07e+1
+- name: radius
+  units: m
+  value: 1.75e+7
+- name: day
+  units: s
+  value: 1.36512e+5
+- name: reference_surface_pressure
+  units: Pa
+  value: 3.0e+06
+- name: dry_air_spec_heat_press
+  units: m2 s-2 K-1
+  value: 1.2e+4
+- name: dry_air_molecular_weight
+  units: kg mol-1
+  value: 2.367e-3
+- name: domain_height
+  units: m
+  value: 4.0e+6

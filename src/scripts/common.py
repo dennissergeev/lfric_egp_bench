@@ -2,6 +2,7 @@
 """Common objects in the lfric_hj_bench_code project."""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 import aeolus
 import iris
@@ -23,14 +24,16 @@ class BenchModel:
     title: str
     kw_plt: dict = field(default_factory=dict)
     model: aeolus.model.base.Model = lfric
-    timestep: float = 120.0  # seconds
+    # timestep: float = 120.0  # seconds
+    details: str = ""
+    datetime_start: datetime = datetime(2000, 1, 1, 0, 0, 0)
 
 
 MODELS = {
     "lfric": BenchModel(
         model=lfric,
         title="LFRic",
-        timestep=1200.0,
+        # timestep=1200.0,
         kw_plt={
             "linestyle": "-",
             "linewidth": 1.25,
@@ -39,7 +42,7 @@ MODELS = {
     "um": BenchModel(
         model=um,
         title="UM",
-        timestep=1200.0,
+        # timestep=1200.0,
         kw_plt={
             "linestyle": "--",
             "linewidth": 0.75,
@@ -92,6 +95,8 @@ class Experiment:
     title: str
     const: aeolus.const.const.ConstContainer
     group: str
+    run_length: int
+    timestep: float  # seconds
 
 
 EXPERIMENTS = {
@@ -99,43 +104,65 @@ EXPERIMENTS = {
         title="Shallow Hot Jupiter",
         const=init_const("shj", directory=paths.const),
         group="tf",
+        run_length=1200,
+        timestep=1200,
     ),
     "dhj": Experiment(
         title="Deep Hot Jupiter",
         const=init_const("dhj", directory=paths.const),
         group="tf",
+        run_length=1200,
+        timestep=120,
     ),
     "camembert_case1_gj1214b": Experiment(
         title="CAMEMBERT - Case 1 - GJ 1214b",
         const=init_const("camembert_gj1214b", directory=paths.const),
         group="tf",
+        run_length=4000,
+        timestep=120,
     ),
     "camembert_case1_k2-18b": Experiment(
         title="CAMEMBERT - Case 1 - K2-18b",
         const=init_const("camembert_k2-18b", directory=paths.const),
         group="tf",
+        run_length=4000,
+        timestep=120,
     ),
     "camembert_case2_gj1214b": Experiment(
         title="CAMEMBERT - Case 2 - GJ 1214b",
         const=init_const("camembert_gj1214b", directory=paths.const),
         group="gr",
+        run_length=10_000,
+        timestep=120,
     ),
     "camembert_case2_k2-18b": Experiment(
         title="CAMEMBERT - Case 2 - K2-18b",
         const=init_const("camembert_k2-18b", directory=paths.const),
         group="gr",
+        run_length=10_000,
+        timestep=120,
     ),
     "camembert_case3_gj1214b": Experiment(
         title="CAMEMBERT - Case 3 - GJ 1214b",
         const=init_const("camembert_gj1214b", directory=paths.const),
         group="rt",
+        run_length=4000,
+        timestep=120,
     ),
     "camembert_case3_k2-18b": Experiment(
         title="CAMEMBERT - Case 3 - K2-18b",
         const=init_const("camembert_k2-18b", directory=paths.const),
         group="rt",
+        run_length=4000,
+        timestep=120,
     ),
 }
+
+
+def camembert_days_to_save(exp_label):
+    """Give a list of days for the CAMEMBERT output."""
+    every_50 = [*range(0, EXPERIMENTS[exp_label].run_length + 1, 50)]
+    return (every_50[0:-21:20] + every_50[-21:])[1:]
 
 
 @dataclass
@@ -145,6 +172,7 @@ class Diag:
     title: str
     units: str
     recipe: callable
+    method: str = "pcolormesh"
     cnorm: bool = False
     kw_plt: dict = field(default_factory=dict)
 
