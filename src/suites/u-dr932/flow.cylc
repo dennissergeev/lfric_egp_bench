@@ -1,4 +1,8 @@
 #!jinja2
+
+{% from "socket" import getfqdn %}
+{% from "cylc.flow" import LOG %}
+
 {# ==================================== #}
 {# Set calendar and isodatetime command #}
 {# ==================================== #}
@@ -50,6 +54,22 @@
        # Following cycle points
        {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
 
+
+{# Setting UOEPLATFORM #}
+{% set hostname = getfqdn() %}
+{% if "epic.astro" in hostname %}
+    {% set UOEPLATFORM = "uoe-epic-gnu" %}
+{% elif "collab.sc" in hostname %}
+    {% set UOEPLATFORM = "uoe-ex1a-gnu" %}
+{% elif "d3-login" in hostname %}
+    {% set UOEPLATFORM = "uoe-dial3-gnu" %}
+{% elif "i3.isambard" in hostname %}
+    {% set UOEPLATFORM = "uoe-isambard3-gnu" %}
+{% else %}
+    {% set UOEPLATFORM = "Unknown (and this LFRic suite should fail?)" %}
+{% endif %}
+{% do LOG.info("UOEPLATFORM: " + UOEPLATFORM) %}
+
 {# ############################## RUNTIME ################################ #}
 
 [runtime]
@@ -73,6 +93,9 @@
             CORE_ROOT_DIR = $SOURCE_ROOT/lfric_core
             LAUNCH_SCRIPT = $APPS_ROOT_DIR/rose-stem/site/meto/common/bin
             VN = {{ VN }}
+            TARGET_LONLAT = {{TARGET_LONLAT[0]}},{{TARGET_LONLAT[1]}}
+            STRETCH_FACTOR = {{STRETCH_FACTOR}}
+            EQ_LAT = $(bc -l <<< "x=(1-$STRETCH_FACTOR^2)/(1+$STRETCH_FACTOR^2); a(x/sqrt(1-x^2))*45/a(1)")
 
     [[EX1A]]
     {% if COMPILER == 'cce' %}
@@ -108,7 +131,146 @@
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
 
+{% if UOEPLATFORM == "uoe-epic-gnu" %}
+    [[EPICGNU]]
+        pre-script = """
+                     module purge
+                     umask 0022
+                     source /home/um/UoEGCC1120SWstackBuild/RoseStemSource.sh
+                     ulimit -s unlimited
+                     module list 2>&1
+                     """
+        platform = localhost
+        [[[environment]]]
+            BIG_DATA_DIR = '/data/lfric/data'
+            BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 1
+            NUMA_REGIONS_PER_NODE = 0
+            RUN_METHOD = mpiexec
+            TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
+{% endif %}
+
+
+{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+    [[DIAL3GNU]]
+        pre-script = """
+                     module purge
+                     umask 0022
+                     source /scratch/dp015/dc-uoeum/UoEGCC1120SWstackBuild/RoseStemSource.sh
+                     ulimit -s unlimited
+                     module list 2>&1
+                     """
+        platform = uoe-dial3
+        [[[environment]]]
+            BIG_DATA_DIR = '/scratch/dp015/dc-uoeum/lfric/data'
+            BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 1
+            NUMA_REGIONS_PER_NODE = 0
+            RUN_METHOD = mpiexec
+            TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
+        [[[directives]]]
+            --account=dp015
+            --partition=devel
+{% endif %}
+
+
+{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+    [[ISAMBARD3GNU]]
+        pre-script = """
+                     module purge
+                     umask 0022
+                     source /projects/u35v/sw/UoEGCC1120SWstackBuild/RoseStemSource.sh
+                     ulimit -s unlimited
+                     module list 2>&1
+                     """
+        platform = uoe-isambard3
+        [[[environment]]]
+            BIG_DATA_DIR = '/projects/u35v/sw/lfricdata'
+            BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 1
+            NUMA_REGIONS_PER_NODE = 0
+            RUN_METHOD = mpiexec
+            TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
+        [[[directives]]]
+{#            --account=u35v #}
+{#            --partition=devel #}
+{% endif %}
+
+
+
     [[BUILD]]
+{% if UOEPLATFORM == "uoe-epic-gnu" %}
+        inherit = EPICGNU
+        script = "rose task-run --app-key=build"
+        [[[environment]]]
+            {# COMPILER = {{ COMPILER }} #}
+            COMPILER = 'gnu'
+            PROFILE = 'production'
+            TARGET = build
+            PSYCLONE_TRANSFORMATION = uoe-epic
+            UM_FCM_TARGET_PLATFORM = uoe-epic
+            LFRIC_TARGET_PLATFORM = uoe-epic
+            MAKE_THREADS = 6
+            RDEF_PRECISION = 32
+            R_TRAN_PRECISION = 32
+            R_BL_PRECISION = 32
+            R_SOLVER_PRECISION = 32
+            R_PHYS_PRECISION = 64
+            PRE_PROCESS_MACROS = ""
+{% else %}
+
+{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+        inherit = DIAL3GNU
+        script = "rose task-run --app-key=build"
+        [[[environment]]]
+            {# COMPILER = {{ COMPILER }} #}
+            COMPILER = 'gnu'
+            PROFILE = 'production'
+            TARGET = build
+            PSYCLONE_TRANSFORMATION = uoe-dial3
+            UM_FCM_TARGET_PLATFORM = uoe-dial3
+            LFRIC_TARGET_PLATFORM = uoe-dial3
+            MAKE_THREADS = 6
+            RDEF_PRECISION = 32
+            R_TRAN_PRECISION = 32
+            R_BL_PRECISION = 32
+            R_SOLVER_PRECISION = 32
+            R_PHYS_PRECISION = 64
+            PRE_PROCESS_MACROS = ""
+        [[[directives]]]
+            --ntasks=6
+            --mem-per-cpu=1G
+            --export=NONE
+{% else %}
+
+{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+        inherit = ISAMBARD3GNU
+        script = "rose task-run --app-key=build"
+        [[[environment]]]
+            {# COMPILER = {{ COMPILER }} #}
+            COMPILER = 'gnu'
+            PROFILE = 'production'
+            TARGET = build
+            PSYCLONE_TRANSFORMATION = uoe-dial3
+{#            PSYCLONE_TRANSFORMATION = uoe-isambard3 #}
+            UM_FCM_TARGET_PLATFORM = uoe-isambard3
+            LFRIC_TARGET_PLATFORM = uoe-isambard3
+            MAKE_THREADS = 6
+            RDEF_PRECISION = 32
+            R_TRAN_PRECISION = 32
+            R_BL_PRECISION = 32
+            R_SOLVER_PRECISION = 32
+            R_PHYS_PRECISION = 64
+            PRE_PROCESS_MACROS = ""
+        [[[directives]]]
+            --ntasks=6
+            --time=00:29:00
+            --mem-per-cpu=1G
+            --export=NON
+{% else %}
         inherit = EX1A
         script = "rose task-run --app-key=build"
         [[[environment]]]
@@ -129,9 +291,57 @@
             -l select=1:ncpus=24:mem=40GB:tmpsize=12GB
             -l walltime=01:00:00
             -q={{SHARED_QUEUE}}
+{% endif %}
+{% endif %}
+{% endif %}
 
 
     [[extract]]
+{% if UOEPLATFORM == "uoe-epic-gnu" %}
+        inherit = EPICGNU
+        script = "rose task-run --app-key=extract"
+        [[[environment]]]
+            MIRROR_LOC = {{ MIRROR_LOC }}
+            {% if USE_MIRRORS %}
+                ROSE_APP_COMMAND_KEY = mirrors
+            {% elif USE_TOKENS %}
+                ROSE_APP_COMMAND_KEY = tokens
+            {% endif %}
+{% else %}
+
+{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+        inherit = DIAL3GNU
+        script = "rose task-run --app-key=extract"
+        [[[environment]]]
+            MIRROR_LOC = {{ MIRROR_LOC }}
+            {% if USE_MIRRORS %}
+                ROSE_APP_COMMAND_KEY = mirrors
+            {% elif USE_TOKENS %}
+                ROSE_APP_COMMAND_KEY = tokens
+            {% endif %}
+        [[[directives]]]
+            --ntasks=1
+            --mem-per-cpu=1G
+            --export=NONE
+{% else %}
+
+{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+        inherit = ISAMBARD3GNU
+        script = "rose task-run --app-key=extract"
+        [[[environment]]]
+            MIRROR_LOC = {{ MIRROR_LOC }}
+            {% if USE_MIRRORS %}
+                ROSE_APP_COMMAND_KEY = mirrors
+            {% elif USE_TOKENS %}
+                ROSE_APP_COMMAND_KEY = tokens
+            {% endif %}
+        [[[directives]]]
+            --ntasks=1
+            --time=00:29:00
+            --mem-per-cpu=1G
+            --export=NONE
+
+{% else %}
         inherit = EX1A
         script = "rose task-run --app-key=extract"
         [[[environment]]]
@@ -145,6 +355,9 @@
             -l select=1:ncpus=1:mem=6GB:tmpsize=6GB
             -l walltime=00:10:00
             -q={{SHARED_QUEUE}}
+{% endif %}
+{% endif %}
+{% endif %}
 
 
     [[build_mesh]]
@@ -166,29 +379,80 @@
 
 
     [[generate_mesh]]
-        inherit = EX1A
-        script = """
-            echo "STRETCH_FACTOR="${STRETCH_FACTOR}
-            echo "EQ_LAT="${EQ_LAT}
-            echo "TARGET_LONLAT="${TARGET_LONLAT}
-            rose task-run --app-key=mesh
-        """
+{% if UOEPLATFORM == "uoe-epic-gnu" %}
+        inherit = EPICGNU
+        script = "rose task-run --app-key=mesh"
         execution time limit = PT10M
         [[[environment]]]
             BIN_DIR = $OUTPUT_ROOT/bin/mesh
             ROSE_APP_OPT_CONF_KEYS = {{LFRIC_RES}}
             OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
-            TARGET_LONLAT = {{TARGET_LONLAT[0]}},{{TARGET_LONLAT[1]}}
-            STRETCH_FACTOR = {{STRETCH_FACTOR}}
-            EQ_LAT = $(bc -l <<< "x=(1-$STRETCH_FACTOR^2)/(1+$STRETCH_FACTOR^2); a(x/sqrt(1-x^2))*45/a(1)")
+{% else %}
+
+{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+        inherit = DIAL3GNU
+        script = "rose task-run --app-key=mesh"
+        execution time limit = PT10M
+        [[[environment]]]
+            BIN_DIR = $OUTPUT_ROOT/bin/mesh
+            ROSE_APP_OPT_CONF_KEYS = {{LFRIC_RES}}
+            OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
+        [[[directives]]]
+            --ntasks=6
+            --mem-per-cpu=1G
+            --export=NONE
+{% else %}
+
+{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+        inherit = ISAMBARD3GNU
+        script = """
+            echo "STRETCH_FACTOR="${STRETCH_FACTOR}
+            echo "EQ_LAT="${EQ_LAT}
+            echo "TARGET_LONLAT="${TARGET_LONLAT}
+            rose task-run --app-key=mesh
+            """
+        execution time limit = PT10M
+        [[[environment]]]
+            BIN_DIR = $OUTPUT_ROOT/bin/mesh
+            ROSE_APP_OPT_CONF_KEYS = {{LFRIC_RES}}
+            OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
+        [[[directives]]]
+            --ntasks=6
+            --time=00:29:00
+            --mem-per-cpu=1G
+            --export=NONE
+
+{% else %}
+        inherit = EX1A
+        script = "rose task-run --app-key=mesh"
+        execution time limit = PT10M
+        [[[environment]]]
+            BIN_DIR = $OUTPUT_ROOT/bin/mesh
+            ROSE_APP_OPT_CONF_KEYS = {{LFRIC_RES}}
+            OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
         [[[directives]]]
             -l select=1:ncpus=1:mem=6GB:tmpsize=6GB
             -l walltime=00:10:00
             -q={{SHARED_QUEUE}}
+{% endif %}
+{% endif %}
+{% endif %}
 
 
     [[lfric_atm]]
+{% if UOEPLATFORM == "uoe-epic-gnu" %}
+        inherit = EPICGNU
+{% else %}
+{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+        inherit = DIAL3GNU
+{% else %}
+{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+        inherit = ISAMBARD3GNU
+{% else %}
         inherit = EX1A
+{% endif %}
+{% endif %}
+{% endif %}
         script = """
             echo "====Forecast times===="
             echo "Forecast start date="${STARTDATE}
@@ -214,7 +478,19 @@
         execution time limit = {{LFRIC_CPU}}
         [[[environment]]]
             DT = {{EXPT_DT}}
+{% if UOEPLATFORM == "uoe-epic-gnu" %}
+            TARGET_PLATFORM = uoe-epic
+{% else %}
+{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+            TARGET_PLATFORM = uoe-dial3
+{% else %}
+{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+            TARGET_PLATFORM = uoe-isambard3
+{% else %}
             TARGET_PLATFORM = meto-ex1a
+{% endif %}
+{% endif %}
+{% endif %}
             METADATA = $APPS_ROOT_DIR/applications/lfric_atm/metadata
             BIN_DIR = $OUTPUT_ROOT/bin/lfric_atm
 	        STARTDATE = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
@@ -228,6 +504,26 @@
 
             ROSE_APP_OPT_CONF_KEYS = {{CASE_SETUP}} {{PHYSICS_CONF}} {{LFRIC_LEVS}}
             TASK_OUTPUT_DIR = $OUTPUT_ROOT/lfric_atm
+{% if UOEPLATFORM == "uoe-epic-gnu" %}
+        [[[directives]]]
+{% else %}
+{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+        [[[directives]]]
+            --mem-per-cpu=8G
+            --ntasks={{TOTAL_RANKS_REQ}}
+            --cpus-per-task=1
+            --export=NONE
+{% else %}
+{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+        [[[directives]]]
+            --mem-per-cpu=8G
+            --ntasks={{TOTAL_RANKS_REQ}}
+            --cpus-per-task=1
+            --export=NONE
+{% else %}
         [[[directives]]]
             -l select={{LFRIC_NODES}}
             -q={{RUN_QUEUE}}
+{% endif %}
+{% endif %}
+{% endif %}
