@@ -2,16 +2,15 @@
 authors = ["Denis Sergeev <dennis.sergeev@gmail.com>"]
 channels = ["conda-forge"]
 name = "lfric_egp_bench"
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks]
 
 [dependencies]
 python = ">=3.13.5,<3.14"
-ipykernel = ">=6.30.1,<7"
+ipykernel = ">=7.3.0,<8"
 iris = ">=3.13.0,<4"
-aeolus = ">=24.11.1.2,<25"
 matplotlib = ">=3.10.5,<4"
 pandas = ">=2.3.1,<3"
 f90nml = ">=1.4.4,<2"
@@ -19,3 +18,4 @@ python-stratify = ">=0.4.0,<0.5"
 
 [pypi-dependencies]
 ncdump-rich = ">=0.5.2, <0.6"
+aeolus = { git = "https://github.com/exoclim/aeolus.git" }
