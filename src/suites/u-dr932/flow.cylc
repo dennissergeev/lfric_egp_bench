@@ -167,12 +167,20 @@
 
     [[generate_mesh]]
         inherit = EX1A
-        script = "rose task-run --app-key=mesh"
+        script = """
+            echo "STRETCH_FACTOR="${STRETCH_FACTOR}
+            echo "EQ_LAT="${EQ_LAT}
+            echo "TARGET_LONLAT="${TARGET_LONLAT}
+            rose task-run --app-key=mesh
+        """
         execution time limit = PT10M
         [[[environment]]]
             BIN_DIR = $OUTPUT_ROOT/bin/mesh
             ROSE_APP_OPT_CONF_KEYS = {{LFRIC_RES}}
             OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
+            TARGET_LONLAT = {{TARGET_LONLAT[0]}},{{TARGET_LONLAT[1]}}
+            STRETCH_FACTOR = {{STRETCH_FACTOR}}
+            EQ_LAT = $(bc -l <<< "x=(1-$STRETCH_FACTOR^2)/(1+$STRETCH_FACTOR^2); a(x/sqrt(1-x^2))*45/a(1)")
         [[[directives]]]
             -l select=1:ncpus=1:mem=6GB:tmpsize=6GB
             -l walltime=00:10:00
@@ -195,7 +203,14 @@
             echo "CORES_PER_NODE="${CORES_PER_NODE}
             mkdir -p $ROSE_DATA/History_Data
             rose task-run --app-key=lfric_atm
+            """
+        {% if HOUSEKEEPING %}
+        post-script = """
+            # Remove XIOS logs on succesful completion
+            rm xios_client_*.{err,out}
         """
+        {% endif %}
+
         execution time limit = {{LFRIC_CPU}}
         [[[environment]]]
             DT = {{EXPT_DT}}
