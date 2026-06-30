@@ -24,7 +24,6 @@ class BenchModel:
     title: str
     kw_plt: dict = field(default_factory=dict)
     model: aeolus.model.base.Model = lfric
-    # timestep: float = 120.0  # seconds
     details: str = ""
     datetime_start: datetime = datetime(2000, 1, 1, 0, 0, 0)
 
@@ -33,7 +32,6 @@ MODELS = {
     "lfric": BenchModel(
         model=lfric,
         title="LFRic",
-        # timestep=1200.0,
         kw_plt={
             "linestyle": "-",
             "linewidth": 1.25,
@@ -42,7 +40,6 @@ MODELS = {
     "um": BenchModel(
         model=um,
         title="UM",
-        # timestep=1200.0,
         kw_plt={
             "linestyle": "--",
             "linewidth": 0.75,
@@ -71,13 +68,13 @@ GROUPS = {
             "camembert_case1_k2-18b",
         ),
     ),
-    "gr": Group(
-        title="Double-Grey Radiative Transfer",
-        simulations=(
-            "camembert_case2_gj1214b",
-            "camembert_case2_k2-18b",
-        ),
-    ),
+    # "gr": Group(
+    #     title="Double-Grey Radiative Transfer",
+    #     simulations=(
+    #         "camembert_case2_gj1214b",
+    #         "camembert_case2_k2-18b",
+    #     ),
+    # ),
     "rt": Group(
         title="Multiband Radiative Transfer",
         simulations=(
@@ -97,64 +94,33 @@ class Experiment:
     group: str
     run_length: int
     timestep: float  # seconds
+    resolution: str = ""  # e.g. 'C48' or '144x90'
 
 
 EXPERIMENTS = {
-    "shj": Experiment(
+    "shj_base_c48": Experiment(
         title="Shallow Hot Jupiter",
         const=init_const("shj", directory=paths.const),
         group="tf",
         run_length=1200,
         timestep=1200,
+        resolution="C48",
     ),
-    "dhj": Experiment(
+    "dhj_base_c48": Experiment(
         title="Deep Hot Jupiter",
         const=init_const("dhj", directory=paths.const),
         group="tf",
         run_length=1200,
-        timestep=120,
+        timestep=30,
+        resolution="C48",
     ),
-    "camembert_case1_gj1214b": Experiment(
-        title="CAMEMBERT - Case 1 - GJ 1214b",
-        const=init_const("camembert_gj1214b", directory=paths.const),
-        group="tf",
-        run_length=4000,
-        timestep=120,
-    ),
-    "camembert_case1_k2-18b": Experiment(
-        title="CAMEMBERT - Case 1 - K2-18b",
-        const=init_const("camembert_k2-18b", directory=paths.const),
-        group="tf",
-        run_length=4000,
-        timestep=120,
-    ),
-    "camembert_case2_gj1214b": Experiment(
-        title="CAMEMBERT - Case 2 - GJ 1214b",
-        const=init_const("camembert_gj1214b", directory=paths.const),
-        group="gr",
-        run_length=10_000,
-        timestep=120,
-    ),
-    "camembert_case2_k2-18b": Experiment(
-        title="CAMEMBERT - Case 2 - K2-18b",
-        const=init_const("camembert_k2-18b", directory=paths.const),
-        group="gr",
-        run_length=10_000,
-        timestep=120,
-    ),
-    "camembert_case3_gj1214b": Experiment(
-        title="CAMEMBERT - Case 3 - GJ 1214b",
-        const=init_const("camembert_gj1214b", directory=paths.const),
+    "hd209_base_c48": Experiment(
+        title="HD 209458b",
+        const=init_const("hd209458b", directory=paths.const),
         group="rt",
-        run_length=4000,
-        timestep=120,
-    ),
-    "camembert_case3_k2-18b": Experiment(
-        title="CAMEMBERT - Case 3 - K2-18b",
-        const=init_const("camembert_k2-18b", directory=paths.const),
-        group="rt",
-        run_length=4000,
-        timestep=120,
+        run_length=1200,
+        timestep=30,
+        resolution="C48",
     ),
 }
 
