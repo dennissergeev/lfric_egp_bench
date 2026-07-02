@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 import aeolus
 import iris
@@ -15,6 +16,59 @@ from iris.exceptions import CoordinateNotFoundError as CoNotFound
 from iris.util import promote_aux_coord_to_dim_coord
 
 PROJECT = "lfric_egp_bench"
+TIME_ORIGIN = "2000-01-01 00:00:00"
+
+
+@dataclass
+class Experiment:
+    """Experiment details."""
+
+    title: str
+    const: aeolus.const.const.ConstContainer
+    group: str
+    run_length: int
+    timestep: float  # seconds
+    resolution: str = ""  # e.g. 'C48' or '144x90'
+    stretch_factor: float = 1.0  # 1 is no stretching
+    target_lon: float = 0.0  # focus of stretching
+
+
+EXPERIMENTS = {
+    "shj_base_c48": Experiment(
+        title="Shallow Hot Jupiter",
+        const=init_const("shj", directory=paths.const),
+        group="tf",
+        run_length=1200,
+        timestep=1200,
+        resolution="C48",
+    ),
+    "dhj_base_c48": Experiment(
+        title="Deep Hot Jupiter",
+        const=init_const("dhj", directory=paths.const),
+        group="tf",
+        run_length=1200,
+        timestep=30,
+        resolution="C48",
+    ),
+    "dhj_base_c24_s0p5_lon00": Experiment(
+        title="Deep Hot Jupiter",
+        const=init_const("dhj", directory=paths.const),
+        group="tf",
+        run_length=1200,
+        timestep=75,
+        resolution="C24_s0p5_lon00",
+        stretch_factor=0.5,
+        target_lon=0.0,
+    ),
+    "hd209_base_c48": Experiment(
+        title="HD 209458b",
+        const=init_const("hd209458b", directory=paths.const),
+        group="rt",
+        run_length=1200,
+        timestep=30,
+        resolution="C48",
+    ),
+}
 
 
 @dataclass
@@ -25,7 +79,7 @@ class BenchModel:
     kw_plt: dict = field(default_factory=dict)
     model: aeolus.model.base.Model = lfric
     details: str = ""
-    datetime_start: datetime = datetime(2000, 1, 1, 0, 0, 0)
+    datetime_start: datetime = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")
 
 
 MODELS = {
@@ -64,8 +118,8 @@ GROUPS = {
         simulations=(
             "shj",
             "dhj",
-            "camembert_case1_gj1214b",
-            "camembert_case1_k2-18b",
+            # "camembert_case1_gj1214b",
+            # "camembert_case1_k2-18b",
         ),
     ),
     # "gr": Group(
@@ -78,49 +132,9 @@ GROUPS = {
     "rt": Group(
         title="Multiband Radiative Transfer",
         simulations=(
-            "camembert_case3_gj1214b",
-            "camembert_case3_k2-18b",
+            # "camembert_case3_gj1214b",
+            # "camembert_case3_k2-18b",
         ),
-    ),
-}
-
-
-@dataclass
-class Experiment:
-    """Experiment details."""
-
-    title: str
-    const: aeolus.const.const.ConstContainer
-    group: str
-    run_length: int
-    timestep: float  # seconds
-    resolution: str = ""  # e.g. 'C48' or '144x90'
-
-
-EXPERIMENTS = {
-    "shj_base_c48": Experiment(
-        title="Shallow Hot Jupiter",
-        const=init_const("shj", directory=paths.const),
-        group="tf",
-        run_length=1200,
-        timestep=1200,
-        resolution="C48",
-    ),
-    "dhj_base_c48": Experiment(
-        title="Deep Hot Jupiter",
-        const=init_const("dhj", directory=paths.const),
-        group="tf",
-        run_length=1200,
-        timestep=30,
-        resolution="C48",
-    ),
-    "hd209_base_c48": Experiment(
-        title="HD 209458b",
-        const=init_const("hd209458b", directory=paths.const),
-        group="rt",
-        run_length=1200,
-        timestep=30,
-        resolution="C48",
     ),
 }
 
@@ -195,3 +209,40 @@ def lfric_callback_uniform_height(cube, field, filename, model_top_height):
         pass
     if cube.units == "ms-1":
         cube.units = "m s-1"
+
+
+def add_time_coord(cube, field, filename, time_origin=TIME_ORIGIN):
+    """Extract time from filename and add as aux coord to cube."""
+    dt = datetime.strptime(Path(filename).stem.split("_")[-1].split("-")[1], "%Y%m%d")
+    dt_sec = (dt - datetime.strptime(time_origin, "%Y-%m-%d %H:%M:%S")).total_seconds()
+    time_coord = iris.coords.AuxCoord(
+        dt_sec,
+        standard_name="time",
+        units=f"seconds since {time_origin}",
+    )
+    cube.add_aux_coord(time_coord)
+    cube = iris.util.new_axis(cube, "time")
+    iris.util.promote_aux_coord_to_dim_coord(cube, "time")
+
+
+def chain_callbacks(*callbacks):
+    """
+    Combine multiple Iris load callbacks into a single callback.
+
+    Parameters
+    ----------
+    *callbacks: callable
+        Callback functions, each with the signature ``(cube, field, filename)``,
+        as expected by `iris.load*`.
+
+    Returns
+    -------
+    callable
+        A single callback that calls each of the given callbacks in order.
+    """
+
+    def combined(cube, field, filename):
+        for cb in callbacks:
+            cb(cube, field, filename)
+
+    return combined
