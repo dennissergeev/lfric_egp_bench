@@ -55,20 +55,20 @@
         {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
 
 
-{# Setting UOEPLATFORM #}
+{# Setting MACHINE #}
 {% set hostname = getfqdn() %}
 {% if "epic.astro" in hostname %}
-    {% set UOEPLATFORM = "uoe-epic-gnu" %}
+    {% set MACHINE = "uoe-epic-gnu" %}
 {% elif "collab.sc" in hostname %}
-    {% set UOEPLATFORM = "uoe-ex1a-gnu" %}
+    {% set MACHINE = "ex1a-gnu" %}
 {% elif "d3-login" in hostname %}
-    {% set UOEPLATFORM = "uoe-dial3-gnu" %}
+    {% set MACHINE = "dial3-gnu" %}
 {% elif "i3.isambard" in hostname %}
-    {% set UOEPLATFORM = "uoe-isambard3-gnu" %}
+    {% set MACHINE = "isambard3-gnu" %}
 {% else %}
-    {% set UOEPLATFORM = "Unknown (and this LFRic suite should fail?)" %}
+    {% set MACHINE = "Unknown (and this LFRic suite should fail?)" %}
 {% endif %}
-{% do LOG.info("UOEPLATFORM: " + UOEPLATFORM) %}
+{% do LOG.info("MACHINE: " + MACHINE) %}
 
 {# ############################## RUNTIME ################################ #}
 
@@ -78,8 +78,8 @@
         script = "rose task-run --verbose"
         [[[events]]]
             {# mail events = submission failed, submission timeout, submission retry, retry, failed, timeout #}
-            submission timeout = PT3H # 12 hours
-            execution timeout  = PT3H  # 3 hours
+            submission timeout = PT3H
+            execution timeout  = PT3H
         [[[environment]]]
             ROSE_ORIG_HOST={{ ROSE_ORIG_HOST }}
             SOURCE_ROOT = $CYLC_WORKFLOW_SHARE_DIR/source
@@ -131,7 +131,7 @@
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
 
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
     [[EPICGNU]]
         pre-script = """
             module purge
@@ -152,7 +152,7 @@
 {% endif %}
 
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
     [[DIAL3GNU]]
         pre-script = """
             module purge
@@ -176,7 +176,7 @@
 {% endif %}
 
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
     [[ISAMBARD3GNU]]
         pre-script = """
             module purge
@@ -202,7 +202,7 @@
 
 
     [[BUILD]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
         script = "rose task-run --app-key=build"
         [[[environment]]]
@@ -222,7 +222,7 @@
             PRE_PROCESS_MACROS = ""
 {% else %}
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
         script = "rose task-run --app-key=build"
         [[[environment]]]
@@ -246,7 +246,7 @@
             --export=NONE
 {% else %}
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
         script = "rose task-run --app-key=build"
         [[[environment]]]
@@ -297,7 +297,7 @@
 
 
     [[extract]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
         script = "rose task-run --app-key=extract"
         [[[environment]]]
@@ -309,7 +309,7 @@
             {% endif %}
 {% else %}
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
         script = "rose task-run --app-key=extract"
         [[[environment]]]
@@ -325,7 +325,7 @@
             --export=NONE
 {% else %}
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
         script = "rose task-run --app-key=extract"
         [[[environment]]]
@@ -379,7 +379,7 @@
 
 
     [[generate_mesh]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
         script = "rose task-run --app-key=mesh"
         execution time limit = PT10M
@@ -389,7 +389,7 @@
             OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
 {% else %}
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
         script = "rose task-run --app-key=mesh"
         execution time limit = PT10M
@@ -403,7 +403,7 @@
             --export=NONE
 {% else %}
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
         script = """
             echo "STRETCH_FACTOR="${STRETCH_FACTOR}
@@ -440,13 +440,13 @@
 
 
     [[lfric_atm]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
 {% else %}
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
 {% else %}
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
         execution retry delays = PT1M, PT10M   # retry twice: after 1 min, then after 10 min
         submission retry delays = 2*PT30M      # retry failed submissions
@@ -480,13 +480,13 @@
         execution time limit = {{LFRIC_CPU}}
         [[[environment]]]
             DT = {{EXPT_DT}}
-            {% if UOEPLATFORM == "uoe-epic-gnu" %}
+            {% if MACHINE == "uoe-epic-gnu" %}
                 TARGET_PLATFORM = uoe-epic
             {% else %}
-            {% if UOEPLATFORM == "uoe-dial3-gnu" %}
+            {% if MACHINE == "dial3-gnu" %}
                 TARGET_PLATFORM = uoe-dial3
             {% else %}
-            {% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+            {% if MACHINE == "isambard3-gnu" %}
                 TARGET_PLATFORM = uoe-isambard3
             {% else %}
                 TARGET_PLATFORM = meto-ex1a
@@ -506,17 +506,17 @@
 
             ROSE_APP_OPT_CONF_KEYS = {{CASE_SETUP}} {{PHYSICS_CONF}} {{LFRIC_LEVS}}
             TASK_OUTPUT_DIR = $OUTPUT_ROOT/lfric_atm
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         [[[directives]]]
 {% else %}
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         [[[directives]]]
             --mem-per-cpu=8G
             --ntasks={{TOTAL_RANKS_REQ}}
             --cpus-per-task=1
             --export=NONE
 {% else %}
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         [[[directives]]]
             --mem-per-cpu=8G
             --ntasks={{TOTAL_RANKS_REQ}}
