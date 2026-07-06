@@ -268,7 +268,7 @@
         [[[directives]]]
             --ntasks=6
             --time=00:29:00
-            --mem-per-cpu=1G
+            --mem-per-cpu=10G
             --export=NON
 {% else %}
         inherit = EX1A
@@ -448,6 +448,8 @@
 {% else %}
 {% if UOEPLATFORM == "uoe-isambard3-gnu" %}
         inherit = ISAMBARD3GNU
+        execution retry delays = PT1M, PT10M   # retry twice: after 1 min, then after 10 min
+        submission retry delays = 2*PT30M      # retry failed submissions
 {% else %}
         inherit = EX1A
 {% endif %}
