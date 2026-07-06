@@ -16,14 +16,14 @@
 # Machine specific settings
 {% if EX_HOST == 'ex' %}
 # Monsoon
-  {% set SPACK = '/projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
-  {% set SHARED_QUEUE = 'collabshared' %}
-  {% set RUN_QUEUE = 'collab' %}
+    {% set SPACK = '/projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
+    {% set SHARED_QUEUE = 'collabshared' %}
+    {% set RUN_QUEUE = 'collab' %}
 {% else %}
 # Met Office ex1a
-  {% set SPACK = '/common/internal/spack/ngms' %}
-  {% set SHARED_QUEUE = 'shared' %}
-  {% set RUN_QUEUE = 'normal' %}
+    {% set SPACK = '/common/internal/spack/ngms' %}
+    {% set SHARED_QUEUE = 'shared' %}
+    {% set RUN_QUEUE = 'normal' %}
 {% endif %}
 
 [scheduler]
@@ -37,22 +37,22 @@
     runahead limit      = P1D
 
     [[graph]]
-       # Initial cycle point
-       R1 = """
-          {{ '' }}
+        # Initial cycle point
+        R1 = """
+            {{ '' }}
 
-          {# Build executable, if required #}
-          {% if BUILD_LFRIC %}
-            extract => build_mesh => generate_mesh
-            extract => build_lfric_atm => lfric_atm
-          {% else %} {# Not building execs #}
-            build_mesh => generate_mesh
-          {% endif %} {# Test on build #}
-          generate_mesh => lfric_atm
-       """
+            {# Build executable, if required #}
+            {% if BUILD_LFRIC %}
+                extract => build_mesh => generate_mesh
+                extract => build_lfric_atm => lfric_atm
+            {% else %} {# Not building execs #}
+                build_mesh => generate_mesh
+            {% endif %} {# Test on build #}
+            generate_mesh => lfric_atm
+        """
 
-       # Following cycle points
-       {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
+        # Following cycle points
+        {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
 
 
 {# Setting UOEPLATFORM #}
@@ -98,29 +98,29 @@
             EQ_LAT = $(bc -l <<< "x=(1-$STRETCH_FACTOR^2)/(1+$STRETCH_FACTOR^2); a(x/sqrt(1-x^2))*45/a(1)")
 
     [[EX1A]]
-    {% if COMPILER == 'cce' %}
+        {% if COMPILER == 'cce' %}
         pre-script = """
-                        module use {{SPACK}}
-                        module switch PrgEnv-cray PrgEnv-cray/8.4.0
-                        module load cpe/23.05
-                        module switch cce cce/15.0.0
-                        module load lfric-cray/15.0.0/3.1 || true
-                        ulimit -s unlimited -c unlimited
-                        ulimit -a
-                        module list 2>&1
-                        """
-    {% else %}
+            module use {{SPACK}}
+            module switch PrgEnv-cray PrgEnv-cray/8.4.0
+            module load cpe/23.05
+            module switch cce cce/15.0.0
+            module load lfric-cray/15.0.0/3.1 || true
+            ulimit -s unlimited -c unlimited
+            ulimit -a
+            module list 2>&1
+            """
+        {% else %}
         pre-script = """
-                        module use {{SPACK}}
-                        module switch cpe/22.11 cpe/23.05
-                        module load PrgEnv-gnu
-                        module load gcc/12.2.0
-                        module load lfric-gnu/12.2.0/3.1 || true
-                        ulimit -s unlimited -c unlimited
-                        ulimit -a
-                        module list 2>&1
-                        """
-    {% endif %}
+            module use {{SPACK}}
+            module switch cpe/22.11 cpe/23.05
+            module load PrgEnv-gnu
+            module load gcc/12.2.0
+            module load lfric-gnu/12.2.0/3.1 || true
+            ulimit -s unlimited -c unlimited
+            ulimit -a
+            module list 2>&1
+            """
+        {% endif %}
         platform = {{ EX_HOST }}
         [[[environment]]]
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
@@ -134,12 +134,12 @@
 {% if UOEPLATFORM == "uoe-epic-gnu" %}
     [[EPICGNU]]
         pre-script = """
-                     module purge
-                     umask 0022
-                     source /home/um/UoEGCC1120SWstackBuild/RoseStemSource.sh
-                     ulimit -s unlimited
-                     module list 2>&1
-                     """
+            module purge
+            umask 0022
+            source /home/um/UoEGCC1120SWstackBuild/RoseStemSource.sh
+            ulimit -s unlimited
+            module list 2>&1
+            """
         platform = localhost
         [[[environment]]]
             BIG_DATA_DIR = '/data/lfric/data'
@@ -155,12 +155,12 @@
 {% if UOEPLATFORM == "uoe-dial3-gnu" %}
     [[DIAL3GNU]]
         pre-script = """
-                     module purge
-                     umask 0022
-                     source /scratch/dp015/dc-uoeum/UoEGCC1120SWstackBuild/RoseStemSource.sh
-                     ulimit -s unlimited
-                     module list 2>&1
-                     """
+            module purge
+            umask 0022
+            source /scratch/dp015/dc-uoeum/UoEGCC1120SWstackBuild/RoseStemSource.sh
+            ulimit -s unlimited
+            module list 2>&1
+            """
         platform = uoe-dial3
         [[[environment]]]
             BIG_DATA_DIR = '/scratch/dp015/dc-uoeum/lfric/data'
@@ -179,12 +179,12 @@
 {% if UOEPLATFORM == "uoe-isambard3-gnu" %}
     [[ISAMBARD3GNU]]
         pre-script = """
-                     module purge
-                     umask 0022
-                     source /projects/u35v/sw/UoEGCC1120SWstackBuild/RoseStemSource.sh
-                     ulimit -s unlimited
-                     module list 2>&1
-                     """
+            module purge
+            umask 0022
+            source /projects/u35v/sw/UoEGCC1120SWstackBuild/RoseStemSource.sh
+            ulimit -s unlimited
+            module list 2>&1
+            """
         platform = uoe-isambard3
         [[[environment]]]
             BIG_DATA_DIR = '/projects/u35v/sw/lfricdata'
@@ -346,11 +346,11 @@
         script = "rose task-run --app-key=extract"
         [[[environment]]]
             MIRROR_LOC = {{ MIRROR_LOC }}
-{% if USE_MIRRORS %}
-            ROSE_APP_COMMAND_KEY = mirrors
-{% elif USE_TOKENS %}
-            ROSE_APP_COMMAND_KEY = tokens
-{% endif %}
+            {% if USE_MIRRORS %}
+                ROSE_APP_COMMAND_KEY = mirrors
+            {% elif USE_TOKENS %}
+                ROSE_APP_COMMAND_KEY = tokens
+            {% endif %}
         [[[directives]]]
             -l select=1:ncpus=1:mem=6GB:tmpsize=6GB
             -l walltime=00:10:00
@@ -474,28 +474,28 @@
         post-script = """
             # Remove XIOS logs on succesful completion
             rm xios_client_*.{err,out}
-        """
+            """
         {% endif %}
 
         execution time limit = {{LFRIC_CPU}}
         [[[environment]]]
             DT = {{EXPT_DT}}
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
-            TARGET_PLATFORM = uoe-epic
-{% else %}
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
-            TARGET_PLATFORM = uoe-dial3
-{% else %}
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
-            TARGET_PLATFORM = uoe-isambard3
-{% else %}
-            TARGET_PLATFORM = meto-ex1a
-{% endif %}
-{% endif %}
-{% endif %}
+            {% if UOEPLATFORM == "uoe-epic-gnu" %}
+                TARGET_PLATFORM = uoe-epic
+            {% else %}
+            {% if UOEPLATFORM == "uoe-dial3-gnu" %}
+                TARGET_PLATFORM = uoe-dial3
+            {% else %}
+            {% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+                TARGET_PLATFORM = uoe-isambard3
+            {% else %}
+                TARGET_PLATFORM = meto-ex1a
+            {% endif %}
+            {% endif %}
+            {% endif %}
             METADATA = $APPS_ROOT_DIR/applications/lfric_atm/metadata
             BIN_DIR = $OUTPUT_ROOT/bin/lfric_atm
-	        STARTDATE = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
+            STARTDATE = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
             STARTTIME = $({{ISODATETIME}} --as-total=s {{EXPT_START}} ref)
             STOPTIME = $({{ISODATETIME}} --as-total=s --offset2={{EXPT_RESUB}} {{EXPT_START}} ref)
             TIME_ORIGIN = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
