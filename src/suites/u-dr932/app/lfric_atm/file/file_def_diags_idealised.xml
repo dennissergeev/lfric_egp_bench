@@ -13,9 +13,15 @@
     </field_group>
   </file>
 
-  <file id="lfric_diag_native" name="lfric_diag_native" output_freq="10d" split_freq="10d" split_end_offset="0h" split_freq_format="%y%mo%d" convention="CF" enabled=".TRUE.">
+  <file id="lfric_diag_cs" name="lfric_diag_cs" output_freq="10d" split_freq="10d" split_end_offset="0h" split_freq_format="%y%mo%d" convention="CF" enabled=".TRUE.">
     <field_group operation="instant" freq_op="10d" prec="8">
+      <field field_ref="u_in_w3" />
+      <field field_ref="v_in_w3" />
+      <field field_ref="w_in_w3" />
       <field field_ref="aam_in_w3" />
+      <field field_ref="processed__temperature" />
+      <field field_ref="processed__pressure_in_wth" />
+      <field field_ref="forcing__dt_force" />
       <field field_ref="processed__tot_col_dry_air_mass" />
       <field field_ref="processed__tot_col_int_energy" />
       <field field_ref="processed__tot_col_pot_energy" />
