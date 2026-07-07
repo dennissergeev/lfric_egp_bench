@@ -6,7 +6,7 @@
 {% set ISODATETIME = "isodatetime --calendar=" ~ "gregorian" %}
 
 # Machine specific settings
-{% if EX_HOST == 'ex' %}
+{% if MO_EX_HOST == 'ex' %}
 # Monsoon
     {% set SPACK = '/projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
     {% set SHARED_QUEUE = 'collabshared' %}
@@ -63,11 +63,13 @@
 
 {# ####### Set CORES_PER_NODE and derive LFRIC_ATM_NODES ###### #}
 {% if MACHINE == "ex1a-monsoon" %}
-    {% set CORES_PER_NODE = 1 %}
+    {% set CORES_PER_NODE = 128 %}
 {% elif MACHINE == "dial3-gnu" %}
     {% set CORES_PER_NODE = 128 %}
 {% elif MACHINE == "isambard3-gnu" %}
     {% set CORES_PER_NODE = 144 %}
+{% elif MACHINE == "uoe-epic-gnu" %}
+    {% set CORES_PER_NODE = 1 %}
 {% else %}
     {% set CORES_PER_NODE = 128 %}
 {% endif %}
@@ -127,7 +129,7 @@
             module list 2>&1
             """
         {% endif %}
-        platform = {{ EX_HOST }}
+        platform = {{ MO_EX_HOST }}
         [[[environment]]]
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
             BUILD_ROOT = ${TMPDIR}
