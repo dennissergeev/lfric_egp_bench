@@ -23,6 +23,14 @@ PROJECT = "lfric_egp_bench"
 TIME_ORIGIN = "2000-01-01 00:00:00"
 EARTH_RADIUS = 6_371_200.0  # metres
 
+um.dt_force = "m01s53i181"
+lfric.du_force = "eastward_wind_increment_from_external_forcing"
+um.du_force = "m01s13i385"
+lfric.dv_force = "northward_wind_increment_from_external_forcing"
+um.dv_force = "m01s13i386"
+lfric.dw_force = "vertical_air_velocity_increment_from_external_forcing"
+um.dw_force = "none"
+
 
 @dataclass
 class Experiment:
