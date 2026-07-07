@@ -464,6 +464,8 @@
 {# Run LFRic                                                    #}
 {# ============================================================ #}
     [[lfric_atm]]
+        execution retry delays = PT1M, PT10M  # retry twice: after 1 min, then after 10 min
+        submission retry delays = 2*PT30M     # retry failed submissions
 {% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
 {% else %}
@@ -472,8 +474,6 @@
 {% else %}
 {% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
-        execution retry delays = PT1M, PT10M   # retry twice: after 1 min, then after 10 min
-        submission retry delays = 2*PT30M      # retry failed submissions
 {% else %}
         inherit = EX1A
 {% endif %}
