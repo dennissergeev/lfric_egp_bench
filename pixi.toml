@@ -6,6 +6,7 @@ platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks]
+download-data = { cmd = "python download_data.py", cwd = "src/scripts" }
 
 [dependencies]
 python = ">=3.13.5,<3.14"

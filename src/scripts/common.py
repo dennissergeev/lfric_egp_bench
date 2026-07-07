@@ -81,22 +81,26 @@ HD209_BASE = Experiment(
 EXPERIMENTS = {
     # SHJ
     "shj_c48_l32": replace(SHJ_BASE),
+    "shj_c24_l32": replace(SHJ_BASE, label="c24_l32", resolution="C24", timestep=2400),
+    "shj_c96_l32": replace(SHJ_BASE, label="c96_l32", resolution="C96", timestep=600),
+    "shj_c48_l16": replace(SHJ_BASE, label="c48_l16", n_levels=16),
+    "shj_c48_l64": replace(SHJ_BASE, label="c48_l64", n_levels=64),
     # DHJ
     "dhj_c48_l66": replace(DHJ_BASE),
     # hd209
-    "hd209_base_c48": replace(HD209_BASE),
+    # "hd209_base_c48": replace(HD209_BASE),
     # old
-    "shj_base_c48": replace(SHJ_BASE),
-    "dhj_base_c24": replace(DHJ_BASE, timestep=75, resolution="C24"),
-    "dhj_base_c48": replace(DHJ_BASE),
-    "dhj_base_c96": replace(DHJ_BASE, resolution="C96"),
-    "dhj_base_c192": replace(DHJ_BASE, timestep=15, resolution="C192"),
-    "dhj_base_c24_s0p5_lon00": replace(
-        DHJ_BASE, timestep=75, resolution="C24", stretch_factor=0.5, target_lon=0.0
-    ),
-    "dhj_base_c24_s0p5_lon90": replace(
-        DHJ_BASE, timestep=75, resolution="C24", stretch_factor=0.5, target_lon=90.0
-    ),
+    # "shj_base_c48": replace(SHJ_BASE),
+    # "dhj_base_c24": replace(DHJ_BASE, timestep=75, resolution="C24"),
+    # "dhj_base_c48": replace(DHJ_BASE),
+    # "dhj_base_c96": replace(DHJ_BASE, resolution="C96"),
+    # "dhj_base_c192": replace(DHJ_BASE, timestep=15, resolution="C192"),
+    # "dhj_base_c24_s0p5_lon00": replace(
+    #     DHJ_BASE, timestep=75, resolution="C24", stretch_factor=0.5, target_lon=0.0
+    # ),
+    # "dhj_base_c24_s0p5_lon90": replace(
+    #     DHJ_BASE, timestep=75, resolution="C24", stretch_factor=0.5, target_lon=90.0
+    # ),
 }
 
 
