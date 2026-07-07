@@ -3,15 +3,7 @@
 {% from "socket" import getfqdn %}
 {% from "cylc.flow" import LOG %}
 
-{# ==================================== #}
-{# Set calendar and isodatetime command #}
-{# ==================================== #}
 {% set ISODATETIME = "isodatetime --calendar=" ~ "gregorian" %}
-{# ==================================== #}
-{# Set lfric_atm compute resources      #}
-{# ==================================== #}
-{% set LPPN = 128 %}
-{% set LFRIC_NODES = (TOTAL_RANKS_REQ/LPPN) | round(0, 'ceil') | int %}
 
 # Machine specific settings
 {% if EX_HOST == 'ex' %}
@@ -54,24 +46,38 @@
         # Following cycle points
         {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
 
-
-{# Setting MACHINE #}
+{# ### Set MACHINE automatically depending on the host name ### #}
 {% set hostname = getfqdn() %}
 {% if "epic.astro" in hostname %}
     {% set MACHINE = "uoe-epic-gnu" %}
 {% elif "collab.sc" in hostname %}
-    {% set MACHINE = "ex1a-gnu" %}
+    {% set MACHINE = "ex1a-monsoon" %}
 {% elif "d3-login" in hostname %}
     {% set MACHINE = "dial3-gnu" %}
 {% elif "i3.isambard" in hostname %}
     {% set MACHINE = "isambard3-gnu" %}
 {% else %}
-    {% set MACHINE = "Unknown (and this LFRic suite should fail?)" %}
+    {% set MACHINE = "Could it be Met Office EX1?" %}
 {% endif %}
 {% do LOG.info("MACHINE: " + MACHINE) %}
 
-{# ############################## RUNTIME ################################ #}
+{# ####### Set CORES_PER_NODE and derive LFRIC_ATM_NODES ###### #}
+{% if MACHINE == "ex1a-monsoon" %}
+    {% set CORES_PER_NODE = 1 %}
+{% elif MACHINE == "dial3-gnu" %}
+    {% set CORES_PER_NODE = 128 %}
+{% elif MACHINE == "isambard3-gnu" %}
+    {% set CORES_PER_NODE = 144 %}
+{% else %}
+    {% set CORES_PER_NODE = 128 %}
+{% endif %}
+{% set LFRIC_ATM_NODES = (TOTAL_RANKS_REQ / CORES_PER_NODE) | round(0, 'ceil') | int %}
+{% do LOG.info("CORES_PER_NODE: " ~ CORES_PER_NODE ~ ", LFRIC_ATM_NODES: " ~ LFRIC_ATM_NODES) %}
 
+
+{# ============================================================ #}
+{# Global runtime settings                                      #}
+{# ============================================================ #}
 [runtime]
     [[root]]
         env-script = eval $(rose task-env)
@@ -125,7 +131,7 @@
         [[[environment]]]
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
             BUILD_ROOT = ${TMPDIR}
-            CORES_PER_NODE = {{LPPN}}
+            CORES_PER_NODE = {{ CORES_PER_NODE }}
             HYPERTHREADS = 1
             NUMA_REGIONS_PER_NODE = 2
             RUN_METHOD = mpiexec
@@ -145,7 +151,7 @@
             BIG_DATA_DIR = '/data/lfric/data'
             BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
             HYPERTHREADS    = 1
-            CORES_PER_NODE  = 1
+            CORES_PER_NODE  = {{ CORES_PER_NODE }}
             NUMA_REGIONS_PER_NODE = 0
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
@@ -166,7 +172,7 @@
             BIG_DATA_DIR = '/scratch/dp015/dc-uoeum/lfric/data'
             BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
             HYPERTHREADS    = 1
-            CORES_PER_NODE  = 1
+            CORES_PER_NODE  = {{ CORES_PER_NODE }}
             NUMA_REGIONS_PER_NODE = 0
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
@@ -190,7 +196,7 @@
             BIG_DATA_DIR = '/projects/u35v/sw/lfricdata'
             BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
             HYPERTHREADS    = 1
-            CORES_PER_NODE  = 1
+            CORES_PER_NODE  = {{ CORES_PER_NODE }}
             NUMA_REGIONS_PER_NODE = 0
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
@@ -295,7 +301,11 @@
 {% endif %}
 {% endif %}
 
+{# ######################## TASKS ############################# #}
 
+{# ============================================================ #}
+{# Fetch source                                                 #}
+{# ============================================================ #}
     [[extract]]
 {% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
@@ -360,6 +370,9 @@
 {% endif %}
 
 
+{# ============================================================ #}
+{# Compile mesh generator                                       #}
+{# ============================================================ #}
     [[build_mesh]]
         inherit = BUILD
         execution time limit = PT10M
@@ -369,6 +382,9 @@
             BIN_DIR = $OUTPUT_ROOT/bin/mesh
 
 
+{# ============================================================ #}
+{# Compile LFRic                                                #}
+{# ============================================================ #}
     [[build_lfric_atm]]
         inherit = BUILD
         execution time limit = PT1H
@@ -378,6 +394,9 @@
             BIN_DIR = $OUTPUT_ROOT/bin/lfric_atm
 
 
+{# ============================================================ #}
+{# Run mesh generator                                           #}
+{# ============================================================ #}
     [[generate_mesh]]
 {% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
@@ -439,6 +458,9 @@
 {% endif %}
 
 
+{# ============================================================ #}
+{# Run LFRic                                                    #}
+{# ============================================================ #}
     [[lfric_atm]]
 {% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
@@ -467,6 +489,7 @@
             echo "====Computational resources===="
             echo "TOTAL_RANKS_REQ="${TOTAL_RANKS_REQ}
             echo "CORES_PER_NODE="${CORES_PER_NODE}
+            echo "LFRIC_ATM_NODES="${LFRIC_ATM_NODES}
             mkdir -p $ROSE_DATA/History_Data
             rose task-run --app-key=lfric_atm
             """
@@ -503,7 +526,7 @@
             RESTART_WRITE = .true.
             RESTART_START = $(bc <<< $STARTTIME/$DT+1)
             RESTART_STOP = $(bc <<< $STOPTIME/$DT)
-
+            LFRIC_ATM_NODES = {{ LFRIC_ATM_NODES }}
             ROSE_APP_OPT_CONF_KEYS = {{CASE_SETUP}} {{PHYSICS_CONF}} {{LFRIC_LEVS}}
             TASK_OUTPUT_DIR = $OUTPUT_ROOT/lfric_atm
 {% if MACHINE == "uoe-epic-gnu" %}
@@ -515,6 +538,8 @@
             --ntasks={{TOTAL_RANKS_REQ}}
             --cpus-per-task=1
             --export=NONE
+            --nodes={{ LFRIC_ATM_NODES }}
+            --ntasks-per-node={{ CORES_PER_NODE }}
 {% else %}
 {% if MACHINE == "isambard3-gnu" %}
         [[[directives]]]
@@ -524,7 +549,7 @@
             --export=NONE
 {% else %}
         [[[directives]]]
-            -l select={{LFRIC_NODES}}
+            -l select={{LFRIC_ATM_NODES}}
             -q={{RUN_QUEUE}}
 {% endif %}
 {% endif %}
