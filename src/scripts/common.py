@@ -31,42 +31,50 @@ class Experiment:
     title: str
     const: aeolus.const.const.ConstContainer
     group: str
+    label: str
     run_length: int
     timestep: float  # seconds
     resolution: str  # e.g. 'C48' or '144x90'
     n_levels: int  # number of layers
     stretch_factor: float = 1.0  # 1 is no stretching
     target_lon: float = 0.0  # focus of stretching
+    category: str = ""
 
 
 SHJ_BASE = Experiment(
     title="Shallow Hot Jupiter",
     const=init_const("shj", directory=paths.const),
-    group="tf",
+    group="shj",
+    label="c48_l32",
     run_length=1200,
     timestep=1200,
     resolution="C48",
     n_levels=32,
+    category="tf",
 )
 
 DHJ_BASE = Experiment(
     title="Deep Hot Jupiter",
     const=init_const("dhj", directory=paths.const),
-    group="tf",
+    group="dhj",
+    label="c48_l66",
     run_length=1200,
     timestep=30,
     resolution="C48",
     n_levels=66,
+    category="tf",
 )
 
 HD209_BASE = Experiment(
     title="HD 209458b",
     const=init_const("hd209458b", directory=paths.const),
-    group="rt",
+    group="hd209",
+    label="c48_l66",
     run_length=1200,
     timestep=30,
     resolution="C48",
     n_levels=66,
+    category="rt",
 )
 
 
@@ -125,16 +133,16 @@ MODELS = {
 
 
 @dataclass
-class Group:
-    """Details for a group of simulations."""
+class Category:
+    """Details for a category of simulations."""
 
     title: str
     simulations: tuple
     kw_plt: dict = field(default_factory=dict)
 
 
-GROUPS = {
-    "tf": Group(
+CATEGORIES = {
+    "tf": Category(
         title="Temperature Forcing",
         simulations=(
             k
@@ -144,14 +152,7 @@ GROUPS = {
             # "camembert_case1_k2-18b",
         ),
     ),
-    # "gr": Group(
-    #     title="Double-Grey Radiative Transfer",
-    #     simulations=(
-    #         "camembert_case2_gj1214b",
-    #         "camembert_case2_k2-18b",
-    #     ),
-    # ),
-    "rt": Group(
+    "rt": Category(
         title="Radiative Transfer",
         simulations=(
             k
