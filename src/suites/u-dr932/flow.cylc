@@ -3,27 +3,19 @@
 {% from "socket" import getfqdn %}
 {% from "cylc.flow" import LOG %}
 
-{# ==================================== #}
-{# Set calendar and isodatetime command #}
-{# ==================================== #}
 {% set ISODATETIME = "isodatetime --calendar=" ~ "gregorian" %}
-{# ==================================== #}
-{# Set lfric_atm compute resources      #}
-{# ==================================== #}
-{% set LPPN = 128 %}
-{% set LFRIC_NODES = (TOTAL_RANKS_REQ/LPPN) | round(0, 'ceil') | int %}
 
 # Machine specific settings
-{% if EX_HOST == 'ex' %}
+{% if MO_EX_HOST == 'ex' %}
 # Monsoon
-  {% set SPACK = '/projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
-  {% set SHARED_QUEUE = 'collabshared' %}
-  {% set RUN_QUEUE = 'collab' %}
+    {% set SPACK = '/projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
+    {% set SHARED_QUEUE = 'collabshared' %}
+    {% set RUN_QUEUE = 'collab' %}
 {% else %}
 # Met Office ex1a
-  {% set SPACK = '/common/internal/spack/ngms' %}
-  {% set SHARED_QUEUE = 'shared' %}
-  {% set RUN_QUEUE = 'normal' %}
+    {% set SPACK = '/common/internal/spack/ngms' %}
+    {% set SHARED_QUEUE = 'shared' %}
+    {% set RUN_QUEUE = 'normal' %}
 {% endif %}
 
 [scheduler]
@@ -37,49 +29,65 @@
     runahead limit      = P1D
 
     [[graph]]
-       # Initial cycle point
-       R1 = """
-          {{ '' }}
+        # Initial cycle point
+        R1 = """
+            {{ '' }}
 
-          {# Build executable, if required #}
-          {% if BUILD_LFRIC %}
-            extract => build_mesh => generate_mesh
-            extract => build_lfric_atm => lfric_atm
-          {% else %} {# Not building execs #}
-            build_mesh => generate_mesh
-          {% endif %} {# Test on build #}
-          generate_mesh => lfric_atm
-       """
+            {# Build executable, if required #}
+            {% if BUILD_LFRIC %}
+                extract => build_mesh => generate_mesh
+                extract => build_lfric_atm => lfric_atm
+            {% else %} {# Not building execs #}
+                build_mesh => generate_mesh
+            {% endif %} {# Test on build #}
+            generate_mesh => lfric_atm
+        """
 
-       # Following cycle points
-       {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
+        # Following cycle points
+        {{EXPT_RESUB}} = lfric_atm[-{{EXPT_RESUB}}] => lfric_atm
 
-
-{# Setting UOEPLATFORM #}
+{# ### Set MACHINE automatically depending on the host name ### #}
 {% set hostname = getfqdn() %}
 {% if "epic.astro" in hostname %}
-    {% set UOEPLATFORM = "uoe-epic-gnu" %}
+    {% set MACHINE = "uoe-epic-gnu" %}
 {% elif "collab.sc" in hostname %}
-    {% set UOEPLATFORM = "uoe-ex1a-gnu" %}
+    {% set MACHINE = "ex1a-monsoon" %}
 {% elif "d3-login" in hostname %}
-    {% set UOEPLATFORM = "uoe-dial3-gnu" %}
+    {% set MACHINE = "dial3-gnu" %}
 {% elif "i3.isambard" in hostname %}
-    {% set UOEPLATFORM = "uoe-isambard3-gnu" %}
+    {% set MACHINE = "isambard3-gnu" %}
 {% else %}
-    {% set UOEPLATFORM = "Unknown (and this LFRic suite should fail?)" %}
+    {% set MACHINE = "Could it be Met Office EX1?" %}
 {% endif %}
-{% do LOG.info("UOEPLATFORM: " + UOEPLATFORM) %}
+{% do LOG.info("MACHINE: " + MACHINE) %}
 
-{# ############################## RUNTIME ################################ #}
+{# ####### Set CORES_PER_NODE and derive LFRIC_ATM_NODES ###### #}
+{% if MACHINE == "ex1a-monsoon" %}
+    {% set CORES_PER_NODE = 128 %}
+{% elif MACHINE == "dial3-gnu" %}
+    {% set CORES_PER_NODE = 128 %}
+{% elif MACHINE == "isambard3-gnu" %}
+    {% set CORES_PER_NODE = 144 %}
+{% elif MACHINE == "uoe-epic-gnu" %}
+    {% set CORES_PER_NODE = 1 %}
+{% else %}
+    {% set CORES_PER_NODE = 128 %}
+{% endif %}
+{% set LFRIC_ATM_NODES = (TOTAL_RANKS_REQ / CORES_PER_NODE) | round(0, 'ceil') | int %}
+{% do LOG.info("CORES_PER_NODE: " ~ CORES_PER_NODE ~ ", LFRIC_ATM_NODES: " ~ LFRIC_ATM_NODES) %}
 
+
+{# ============================================================ #}
+{# Global runtime settings                                      #}
+{# ============================================================ #}
 [runtime]
     [[root]]
         env-script = eval $(rose task-env)
         script = "rose task-run --verbose"
         [[[events]]]
             {# mail events = submission failed, submission timeout, submission retry, retry, failed, timeout #}
-            submission timeout = PT3H # 12 hours
-            execution timeout  = PT3H  # 3 hours
+            submission timeout = PT3H
+            execution timeout  = PT3H
         [[[environment]]]
             ROSE_ORIG_HOST={{ ROSE_ORIG_HOST }}
             SOURCE_ROOT = $CYLC_WORKFLOW_SHARE_DIR/source
@@ -98,75 +106,75 @@
             EQ_LAT = $(bc -l <<< "x=(1-$STRETCH_FACTOR^2)/(1+$STRETCH_FACTOR^2); a(x/sqrt(1-x^2))*45/a(1)")
 
     [[EX1A]]
-    {% if COMPILER == 'cce' %}
+        {% if COMPILER == 'cce' %}
         pre-script = """
-                        module use {{SPACK}}
-                        module switch PrgEnv-cray PrgEnv-cray/8.4.0
-                        module load cpe/23.05
-                        module switch cce cce/15.0.0
-                        module load lfric-cray/15.0.0/3.1 || true
-                        ulimit -s unlimited -c unlimited
-                        ulimit -a
-                        module list 2>&1
-                        """
-    {% else %}
+            module use {{SPACK}}
+            module switch PrgEnv-cray PrgEnv-cray/8.4.0
+            module load cpe/23.05
+            module switch cce cce/15.0.0
+            module load lfric-cray/15.0.0/3.1 || true
+            ulimit -s unlimited -c unlimited
+            ulimit -a
+            module list 2>&1
+            """
+        {% else %}
         pre-script = """
-                        module use {{SPACK}}
-                        module switch cpe/22.11 cpe/23.05
-                        module load PrgEnv-gnu
-                        module load gcc/12.2.0
-                        module load lfric-gnu/12.2.0/3.1 || true
-                        ulimit -s unlimited -c unlimited
-                        ulimit -a
-                        module list 2>&1
-                        """
-    {% endif %}
-        platform = {{ EX_HOST }}
+            module use {{SPACK}}
+            module switch cpe/22.11 cpe/23.05
+            module load PrgEnv-gnu
+            module load gcc/12.2.0
+            module load lfric-gnu/12.2.0/3.1 || true
+            ulimit -s unlimited -c unlimited
+            ulimit -a
+            module list 2>&1
+            """
+        {% endif %}
+        platform = {{ MO_EX_HOST }}
         [[[environment]]]
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
             BUILD_ROOT = ${TMPDIR}
-            CORES_PER_NODE = {{LPPN}}
+            CORES_PER_NODE = {{ CORES_PER_NODE }}
             HYPERTHREADS = 1
             NUMA_REGIONS_PER_NODE = 2
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
 
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
     [[EPICGNU]]
         pre-script = """
-                     module purge
-                     umask 0022
-                     source /home/um/UoEGCC1120SWstackBuild/RoseStemSource.sh
-                     ulimit -s unlimited
-                     module list 2>&1
-                     """
+            module purge
+            umask 0022
+            source /home/um/UoEGCC1120SWstackBuild/RoseStemSource.sh
+            ulimit -s unlimited
+            module list 2>&1
+            """
         platform = localhost
         [[[environment]]]
             BIG_DATA_DIR = '/data/lfric/data'
             BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
             HYPERTHREADS    = 1
-            CORES_PER_NODE  = 1
+            CORES_PER_NODE  = {{ CORES_PER_NODE }}
             NUMA_REGIONS_PER_NODE = 0
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
 {% endif %}
 
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
     [[DIAL3GNU]]
         pre-script = """
-                     module purge
-                     umask 0022
-                     source /scratch/dp015/dc-uoeum/UoEGCC1120SWstackBuild/RoseStemSource.sh
-                     ulimit -s unlimited
-                     module list 2>&1
-                     """
+            module purge
+            umask 0022
+            source /scratch/dp015/dc-uoeum/UoEGCC1120SWstackBuild/RoseStemSource.sh
+            ulimit -s unlimited
+            module list 2>&1
+            """
         platform = uoe-dial3
         [[[environment]]]
             BIG_DATA_DIR = '/scratch/dp015/dc-uoeum/lfric/data'
             BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
             HYPERTHREADS    = 1
-            CORES_PER_NODE  = 1
+            CORES_PER_NODE  = {{ CORES_PER_NODE }}
             NUMA_REGIONS_PER_NODE = 0
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
@@ -176,21 +184,21 @@
 {% endif %}
 
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
     [[ISAMBARD3GNU]]
         pre-script = """
-                     module purge
-                     umask 0022
-                     source /projects/u35v/sw/UoEGCC1120SWstackBuild/RoseStemSource.sh
-                     ulimit -s unlimited
-                     module list 2>&1
-                     """
+            module purge
+            umask 0022
+            source /projects/u35v/sw/UoEGCC1120SWstackBuild/RoseStemSource.sh
+            ulimit -s unlimited
+            module list 2>&1
+            """
         platform = uoe-isambard3
         [[[environment]]]
             BIG_DATA_DIR = '/projects/u35v/sw/lfricdata'
             BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
             HYPERTHREADS    = 1
-            CORES_PER_NODE  = 1
+            CORES_PER_NODE  = {{ CORES_PER_NODE }}
             NUMA_REGIONS_PER_NODE = 0
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
@@ -202,7 +210,7 @@
 
 
     [[BUILD]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
         script = "rose task-run --app-key=build"
         [[[environment]]]
@@ -222,7 +230,7 @@
             PRE_PROCESS_MACROS = ""
 {% else %}
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
         script = "rose task-run --app-key=build"
         [[[environment]]]
@@ -246,7 +254,7 @@
             --export=NONE
 {% else %}
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
         script = "rose task-run --app-key=build"
         [[[environment]]]
@@ -268,7 +276,7 @@
         [[[directives]]]
             --ntasks=6
             --time=00:29:00
-            --mem-per-cpu=1G
+            --mem-per-cpu=10G
             --export=NON
 {% else %}
         inherit = EX1A
@@ -295,9 +303,13 @@
 {% endif %}
 {% endif %}
 
+{# ######################## TASKS ############################# #}
 
+{# ============================================================ #}
+{# Fetch source                                                 #}
+{# ============================================================ #}
     [[extract]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
         script = "rose task-run --app-key=extract"
         [[[environment]]]
@@ -309,7 +321,7 @@
             {% endif %}
 {% else %}
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
         script = "rose task-run --app-key=extract"
         [[[environment]]]
@@ -325,7 +337,7 @@
             --export=NONE
 {% else %}
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
         script = "rose task-run --app-key=extract"
         [[[environment]]]
@@ -346,11 +358,11 @@
         script = "rose task-run --app-key=extract"
         [[[environment]]]
             MIRROR_LOC = {{ MIRROR_LOC }}
-{% if USE_MIRRORS %}
-            ROSE_APP_COMMAND_KEY = mirrors
-{% elif USE_TOKENS %}
-            ROSE_APP_COMMAND_KEY = tokens
-{% endif %}
+            {% if USE_MIRRORS %}
+                ROSE_APP_COMMAND_KEY = mirrors
+            {% elif USE_TOKENS %}
+                ROSE_APP_COMMAND_KEY = tokens
+            {% endif %}
         [[[directives]]]
             -l select=1:ncpus=1:mem=6GB:tmpsize=6GB
             -l walltime=00:10:00
@@ -360,6 +372,9 @@
 {% endif %}
 
 
+{# ============================================================ #}
+{# Compile mesh generator                                       #}
+{# ============================================================ #}
     [[build_mesh]]
         inherit = BUILD
         execution time limit = PT10M
@@ -369,6 +384,9 @@
             BIN_DIR = $OUTPUT_ROOT/bin/mesh
 
 
+{# ============================================================ #}
+{# Compile LFRic                                                #}
+{# ============================================================ #}
     [[build_lfric_atm]]
         inherit = BUILD
         execution time limit = PT1H
@@ -378,8 +396,11 @@
             BIN_DIR = $OUTPUT_ROOT/bin/lfric_atm
 
 
+{# ============================================================ #}
+{# Run mesh generator                                           #}
+{# ============================================================ #}
     [[generate_mesh]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
         script = "rose task-run --app-key=mesh"
         execution time limit = PT10M
@@ -389,7 +410,7 @@
             OUTPUT_FILE_PREFIX = $MESH_DIR/mesh_{{LFRIC_RES}}
 {% else %}
 
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
         script = "rose task-run --app-key=mesh"
         execution time limit = PT10M
@@ -403,7 +424,7 @@
             --export=NONE
 {% else %}
 
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
         script = """
             echo "STRETCH_FACTOR="${STRETCH_FACTOR}
@@ -439,14 +460,19 @@
 {% endif %}
 
 
+{# ============================================================ #}
+{# Run LFRic                                                    #}
+{# ============================================================ #}
     [[lfric_atm]]
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+        execution retry delays = PT1M, PT10M  # retry twice: after 1 min, then after 10 min
+        submission retry delays = 2*PT30M     # retry failed submissions
+{% if MACHINE == "uoe-epic-gnu" %}
         inherit = EPICGNU
 {% else %}
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
         inherit = DIAL3GNU
 {% else %}
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
+{% if MACHINE == "isambard3-gnu" %}
         inherit = ISAMBARD3GNU
 {% else %}
         inherit = EX1A
@@ -465,6 +491,7 @@
             echo "====Computational resources===="
             echo "TOTAL_RANKS_REQ="${TOTAL_RANKS_REQ}
             echo "CORES_PER_NODE="${CORES_PER_NODE}
+            echo "LFRIC_ATM_NODES="${LFRIC_ATM_NODES}
             mkdir -p $ROSE_DATA/History_Data
             rose task-run --app-key=lfric_atm
             """
@@ -472,28 +499,28 @@
         post-script = """
             # Remove XIOS logs on succesful completion
             rm xios_client_*.{err,out}
-        """
+            """
         {% endif %}
 
         execution time limit = {{LFRIC_CPU}}
         [[[environment]]]
             DT = {{EXPT_DT}}
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
-            TARGET_PLATFORM = uoe-epic
-{% else %}
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
-            TARGET_PLATFORM = uoe-dial3
-{% else %}
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
-            TARGET_PLATFORM = uoe-isambard3
-{% else %}
-            TARGET_PLATFORM = meto-ex1a
-{% endif %}
-{% endif %}
-{% endif %}
+            {% if MACHINE == "uoe-epic-gnu" %}
+                TARGET_PLATFORM = uoe-epic
+            {% else %}
+            {% if MACHINE == "dial3-gnu" %}
+                TARGET_PLATFORM = uoe-dial3
+            {% else %}
+            {% if MACHINE == "isambard3-gnu" %}
+                TARGET_PLATFORM = uoe-isambard3
+            {% else %}
+                TARGET_PLATFORM = meto-ex1a
+            {% endif %}
+            {% endif %}
+            {% endif %}
             METADATA = $APPS_ROOT_DIR/applications/lfric_atm/metadata
             BIN_DIR = $OUTPUT_ROOT/bin/lfric_atm
-	        STARTDATE = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
+            STARTDATE = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
             STARTTIME = $({{ISODATETIME}} --as-total=s {{EXPT_START}} ref)
             STOPTIME = $({{ISODATETIME}} --as-total=s --offset2={{EXPT_RESUB}} {{EXPT_START}} ref)
             TIME_ORIGIN = $({{ISODATETIME}} -f "%F %T" {{EXPT_START}})
@@ -501,28 +528,30 @@
             RESTART_WRITE = .true.
             RESTART_START = $(bc <<< $STARTTIME/$DT+1)
             RESTART_STOP = $(bc <<< $STOPTIME/$DT)
-
+            LFRIC_ATM_NODES = {{ LFRIC_ATM_NODES }}
             ROSE_APP_OPT_CONF_KEYS = {{CASE_SETUP}} {{PHYSICS_CONF}} {{LFRIC_LEVS}}
             TASK_OUTPUT_DIR = $OUTPUT_ROOT/lfric_atm
-{% if UOEPLATFORM == "uoe-epic-gnu" %}
+{% if MACHINE == "uoe-epic-gnu" %}
         [[[directives]]]
 {% else %}
-{% if UOEPLATFORM == "uoe-dial3-gnu" %}
+{% if MACHINE == "dial3-gnu" %}
+        [[[directives]]]
+            --mem-per-cpu=8G
+            --ntasks={{TOTAL_RANKS_REQ}}
+            --cpus-per-task=1
+            --export=NONE
+            --nodes={{ LFRIC_ATM_NODES }}
+            --ntasks-per-node={{ CORES_PER_NODE }}
+{% else %}
+{% if MACHINE == "isambard3-gnu" %}
         [[[directives]]]
             --mem-per-cpu=8G
             --ntasks={{TOTAL_RANKS_REQ}}
             --cpus-per-task=1
             --export=NONE
 {% else %}
-{% if UOEPLATFORM == "uoe-isambard3-gnu" %}
         [[[directives]]]
-            --mem-per-cpu=8G
-            --ntasks={{TOTAL_RANKS_REQ}}
-            --cpus-per-task=1
-            --export=NONE
-{% else %}
-        [[[directives]]]
-            -l select={{LFRIC_NODES}}
+            -l select={{LFRIC_ATM_NODES}}
             -q={{RUN_QUEUE}}
 {% endif %}
 {% endif %}

@@ -1,20 +1,35 @@
 <file_definition>
 
-  <file id="lfric_diag_latlon" name="lfric_diag_latlon" output_freq="1d" split_freq="1d" split_end_offset="0h" split_freq_format="%y%mo%d" convention="CF" enabled=".TRUE.">
-    <field_group operation="instant" freq_op="1d" grid_ref="fl_latlon1" prec="4">
+  <file id="lfric_diag_latlon" name="lfric_diag_latlon" output_freq="10d" split_freq="10d" split_end_offset="0h" split_freq_format="%y%mo%d" convention="CF" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="10d" grid_ref="fl_latlon1" prec="4">
       <field field_ref="processed__temperature" />
       <field field_ref="processed__pressure_in_wth" />
       <field field_ref="forcing__dt_force" />
     </field_group>
-    <field_group operation="instant" freq_op="1d" grid_ref="hl_latlon1" prec="4">
+    <field_group operation="instant" freq_op="10d" grid_ref="hl_latlon1" prec="4">
       <field field_ref="u_in_w3" />
       <field field_ref="v_in_w3" />
       <field field_ref="w_in_w3" />
+      <field field_ref="divergence" />
+      <field field_ref="xi3" />
     </field_group>
   </file>
 
-  <file id="lfric_diag_native" name="lfric_diag_native" output_freq="1d" split_freq="1d" split_end_offset="0h" split_freq_format="%y%mo%d" convention="CF" enabled=".TRUE.">
-    <field_group operation="instant" freq_op="1d" prec="8">
+  <file id="lfric_diag_main" name="lfric_diag_main" output_freq="10d" split_freq="10d" split_end_offset="0h" split_freq_format="%y%mo%d" convention="CF" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="10d" prec="4">
+      <field field_ref="u_in_w3" />
+      <field field_ref="v_in_w3" />
+      <field field_ref="w_in_w3" />
+      <field field_ref="divergence" />
+      <field field_ref="xi3" />
+      <field field_ref="processed__temperature" />
+      <field field_ref="processed__pressure_in_wth" />
+      <field field_ref="forcing__dt_force" />
+    </field_group>
+  </file>
+
+  <file id="lfric_diag_cnsrv" name="lfric_diag_cnsrv" output_freq="10d" split_freq="10d" split_end_offset="0h" split_freq_format="%y%mo%d" convention="CF" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="10d" prec="8">
       <field field_ref="aam_in_w3" />
       <field field_ref="processed__tot_col_dry_air_mass" />
       <field field_ref="processed__tot_col_int_energy" />
