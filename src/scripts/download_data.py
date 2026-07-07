@@ -30,10 +30,13 @@ def main(exp_keys, host):
         local_dir = paths.data_work / "lfric" / group / label
         local_dir.mkdir(parents=True, exist_ok=True)
         remote_glob = f"{remote_cylc_run}/{group}/{label}/work/20*/lfric_atm/lfric_*.nc"
-        subprocess.run(
-            ["rsync", "-amPvz", f"{host}:{remote_glob}", f"{local_dir}/"],
-            check=True,
-        )
+        try:
+            subprocess.run(
+                ["rsync", "-amPvz", f"{host}:{remote_glob}", f"{local_dir}/"],
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            click.echo(f"rsync failed for {group}/{label}: exit code {e.returncode}", err=True)
 
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ DHJ_BASE = Experiment(
     group="dhj",
     label="c48_l66",
     run_length=1200,
-    timestep=30,
+    timestep=45,
     resolution="C48",
     n_levels=66,
     category="tf",
@@ -87,6 +87,8 @@ EXPERIMENTS = {
     "shj_c48_l64": replace(SHJ_BASE, label="c48_l64", n_levels=64),
     # DHJ
     "dhj_c48_l66": replace(DHJ_BASE),
+    "dhj_c24_l66": replace(DHJ_BASE, label="c24_l66", resolution="C24", timestep=75),
+    "dhj_c96_l66": replace(DHJ_BASE, label="c96_l66", resolution="C96", timestep=30),
     # hd209
     # "hd209_base_c48": replace(HD209_BASE),
     # old
