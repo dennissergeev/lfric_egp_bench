@@ -10,6 +10,8 @@
       <field field_ref="u_in_w3" />
       <field field_ref="v_in_w3" />
       <field field_ref="w_in_w3" />
+      <field field_ref="divergence" />
+      <field field_ref="xi3" />
     </field_group>
   </file>
 
@@ -18,6 +20,8 @@
       <field field_ref="u_in_w3" />
       <field field_ref="v_in_w3" />
       <field field_ref="w_in_w3" />
+      <field field_ref="divergence" />
+      <field field_ref="xi3" />
       <field field_ref="aam_in_w3" />
       <field field_ref="processed__temperature" />
       <field field_ref="processed__pressure_in_wth" />
