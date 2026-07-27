@@ -74,7 +74,12 @@
     {% set CORES_PER_NODE = 128 %}
 {% endif %}
 {% set LFRIC_ATM_NODES = (TOTAL_RANKS_REQ / CORES_PER_NODE) | round(0, 'ceil') | int %}
-{% do LOG.info("CORES_PER_NODE: " ~ CORES_PER_NODE ~ ", LFRIC_ATM_NODES: " ~ LFRIC_ATM_NODES) %}
+{# Ranks per node, spread evenly over the nodes we ask for. Slurm needs this
+   EXPLICITLY: given only --ntasks it is free to take a few ranks from each of a
+   dozen partially-free nodes, which on Isambard 3 turns intra-node halo swaps into
+   network ones. #}
+{% set LFRIC_ATM_PPN = (TOTAL_RANKS_REQ / LFRIC_ATM_NODES) | round(0, 'ceil') | int %}
+{% do LOG.info("CORES_PER_NODE: " ~ CORES_PER_NODE ~ ", LFRIC_ATM_NODES: " ~ LFRIC_ATM_NODES ~ ", LFRIC_ATM_PPN: " ~ LFRIC_ATM_PPN) %}
 
 
 {# ============================================================ #}
@@ -199,9 +204,16 @@
             BUILD_ROOT=$CYLC_WORKFLOW_SHARE_DIR/lfric_build
             HYPERTHREADS    = 1
             CORES_PER_NODE  = {{ CORES_PER_NODE }}
-            NUMA_REGIONS_PER_NODE = 0
+            # A Grace node is 2 sockets x 72 cores, not 0 NUMA regions.
+            NUMA_REGIONS_PER_NODE = 2
             RUN_METHOD = mpiexec
             TOTAL_RANKS_REQ = {{TOTAL_RANKS_REQ}}
+            # launch-exe's non-meto branch otherwise emits a bare `mpiexec -n N`, and
+            # Hydra does not bind by default -- all N ranks then share one N-CPU
+            # affinity mask and the kernel migrates them across both Grace sockets.
+            # SITE_MPI_LAUNCHER_OPTS is the hook launch-exe provides for exactly this;
+            # it replaces LAUNCHER_OPTS wholesale, so it must carry -n itself.
+            SITE_MPI_LAUNCHER_OPTS = -bind-to core -ppn {{ LFRIC_ATM_PPN }} -n {{ TOTAL_RANKS_REQ }}
         [[[directives]]]
 {#            --account=u35v #}
 {#            --partition=devel #}
@@ -545,9 +557,20 @@
 {% else %}
 {% if MACHINE == "isambard3-gnu" %}
         [[[directives]]]
-            --mem-per-cpu=8G
+            # Ask for a node COUNT and a per-node rank count, as the dial3-gnu branch
+            # above already does. --mem-per-cpu=8G caps a node at 28 of these ranks
+            # (230400 MB / 8 GB), and with no node count asked for Slurm fills gaps on
+            # as many partly-occupied nodes as it likes -- 108 ranks that fit on one
+            # 144-core node were observed spread over 9 to 32 of them. The UoE stack's
+            # MPICH is built --with-device=ch3 and so has no libfabric: every message
+            # that crosses a node boundary falls back to TCP, ~30x slower than the
+            # fabric. --mem=0 takes the node's whole memory, which is what a packed
+            # node wants anyway.
+            --nodes={{ LFRIC_ATM_NODES }}
             --ntasks={{TOTAL_RANKS_REQ}}
+            --ntasks-per-node={{ LFRIC_ATM_PPN }}
             --cpus-per-task=1
+            --mem=0
             --export=NONE
 {% else %}
         [[[directives]]]
