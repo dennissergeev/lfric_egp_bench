@@ -220,6 +220,13 @@
             # things have to move together or the run gets SLOWER: OMP_NUM_THREADS=N
             # there, --cpus-per-task=N below, and this becoming `-bind-to core:N`.
             # Leave it at `core` and N threads per rank would contend for one core.
+            #
+            # NB2 the branch this hook lives in is an `elif`, ahead of the one that
+            # appends the XIOS server to the MPMD command line -- so setting it also
+            # SILENTLY drops `: -n ${XIOS_SERVER_RANKS} xios_server.exe`. Inert here
+            # because this app sets XIOS_SERVER_MODE=False (app/lfric_atm/rose-app.conf),
+            # but if you ever switch that to True, this line has to grow the XIOS
+            # component itself or the model will launch with no IO server.
             SITE_MPI_LAUNCHER_OPTS = -bind-to core -ppn {{ LFRIC_ATM_PPN }} -n {{ TOTAL_RANKS_REQ }}
         [[[directives]]]
 {#            --account=u35v #}
