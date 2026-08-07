@@ -1,20 +1,23 @@
-#!/usr/bin/env python
 """Common objects in the lfric_hj_bench_code project."""
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
-import aeolus
-import iris
 import numpy as np
 import paths
 from aeolus.const import init_const
+from aeolus.const.const import ConstContainer
 from aeolus.coord import ensure_bounds
 from aeolus.lfric import add_equally_spaced_height_coord, fix_time_coord
 from aeolus.model import lfric, um
+from aeolus.model.base import Model
+from iris.coords import AuxCoord, DimCoord
+from iris.cube import Cube
 from iris.exceptions import CoordinateNotFoundError as CoNotFound
-from iris.util import promote_aux_coord_to_dim_coord
+from iris.util import new_axis, promote_aux_coord_to_dim_coord
 from spharm import getspecindx
 from windspharm.standard import VectorWind
 from windspharm.tools import order_latdim, prep_data
@@ -23,13 +26,23 @@ PROJECT = "lfric_egp_bench"
 TIME_ORIGIN = "2000-01-01 00:00:00"
 EARTH_RADIUS = 6_371_200.0  # metres
 
-um.dt_force = "m01s53i181"
-lfric.du_force = "eastward_wind_increment_from_external_forcing"
-um.du_force = "m01s13i385"
-lfric.dv_force = "northward_wind_increment_from_external_forcing"
-um.dv_force = "m01s13i386"
-lfric.dw_force = "vertical_air_velocity_increment_from_external_forcing"
-um.dw_force = "none"
+um.dt_force = "m01s53i181"  # type: ignore
+lfric.du_force = "eastward_wind_increment_from_external_forcing"  # type: ignore
+um.du_force = "m01s13i385"  # type: ignore
+lfric.dv_force = "northward_wind_increment_from_external_forcing"  # type: ignore
+um.dv_force = "m01s13i386"  # type: ignore
+lfric.dw_force = "vertical_air_velocity_increment_from_external_forcing"  # type: ignore
+um.dw_force = "none"  # type: ignore
+
+
+@dataclass
+class InternalFlux:
+    """Internal flux specification in RT experiments."""
+
+    value: float = 5.670367
+    decorr_timescale: float = 100000.0
+    wavenumber: int = 20
+    method: Literal["uniform", "non_uniform", "random_harmonics"] = "random_harmonics"
 
 
 @dataclass
@@ -37,7 +50,7 @@ class Experiment:
     """Experiment details."""
 
     title: str
-    const: aeolus.const.const.ConstContainer
+    const: ConstContainer
     group: str
     label: str
     run_length: int
@@ -47,6 +60,7 @@ class Experiment:
     stretch_factor: float = 1.0  # 1 is no stretching
     target_lon: float = 0.0  # focus of stretching
     category: str = ""
+    internal_flux: InternalFlux | None = None
 
 
 SHJ_BASE = Experiment(
@@ -59,6 +73,7 @@ SHJ_BASE = Experiment(
     resolution="C48",
     n_levels=32,
     category="tf",
+    internal_flux=None,
 )
 
 DHJ_BASE = Experiment(
@@ -71,18 +86,20 @@ DHJ_BASE = Experiment(
     resolution="C48",
     n_levels=66,
     category="tf",
+    internal_flux=None,
 )
 
 HD209_BASE = Experiment(
     title="HD 209458b",
     const=init_const("hd209458b", directory=paths.const),
     group="hd209",
-    label="c48_l66",
+    label="base_c48",
     run_length=1200,
     timestep=30,
     resolution="C48",
     n_levels=66,
     category="rt",
+    internal_flux=InternalFlux(),
 )
 
 
@@ -98,7 +115,15 @@ EXPERIMENTS = {
     "dhj_c24_l66": replace(DHJ_BASE, label="c24_l66", resolution="C24", timestep=75),
     "dhj_c96_l66": replace(DHJ_BASE, label="c96_l66", resolution="C96", timestep=30),
     # hd209
-    # "hd209_base_c48": replace(HD209_BASE),
+    "hd209_base_c48": replace(HD209_BASE),
+    "hd209_uniform_t100k_c48": replace(
+        HD209_BASE, label="uniform_t100k_c48"
+    ),  # TODO: rename! flux=0
+    "hd209_rand_t100k_nf20_tau1e5": replace(
+        HD209_BASE,
+        label="rand_t100k_nf20_tau1e5",
+        internal_flux=InternalFlux(method="random_harmonics"),
+    ),
     # old
     # "shj_base_c48": replace(SHJ_BASE),
     # "dhj_base_c24": replace(DHJ_BASE, timestep=75, resolution="C24"),
@@ -120,9 +145,9 @@ class BenchModel:
 
     title: str
     kw_plt: dict = field(default_factory=dict)
-    model: aeolus.model.base.Model = lfric
+    model: Model = lfric
     details: str = ""
-    datetime_start: datetime = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")
+    datetime_start: datetime = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007, RUF009
 
 
 MODELS = {
@@ -151,30 +176,18 @@ class Category:
     """Details for a category of simulations."""
 
     title: str
-    simulations: tuple
+    simulations: Iterable
     kw_plt: dict = field(default_factory=dict)
 
 
 CATEGORIES = {
     "tf": Category(
         title="Temperature Forcing",
-        simulations=(
-            k
-            for k in EXPERIMENTS.keys()
-            if k.startswith(("shj", "dhj"))
-            # "camembert_case1_gj1214b",
-            # "camembert_case1_k2-18b",
-        ),
+        simulations=(k for k in EXPERIMENTS if k.startswith(("shj", "dhj"))),
     ),
     "rt": Category(
         title="Radiative Transfer",
-        simulations=(
-            k
-            for k in EXPERIMENTS.keys()
-            if k.startswith("hd209")
-            # "camembert_case3_gj1214b",
-            # "camembert_case3_k2-18b",
-        ),
+        simulations=(k for k in EXPERIMENTS if k.startswith("hd209")),
     ),
 }
 
@@ -191,7 +204,7 @@ class Diag:
 
     title: str
     units: str
-    recipe: callable
+    recipe: Callable
     method: str = "pcolormesh"
     cnorm: bool = False
     kw_plt: dict = field(default_factory=dict)
@@ -245,7 +258,7 @@ def lfric_callback_uniform_height(cube, field, filename, model_top_height):
     )
     try:
         replace_z_coord(cube, inplace=True, remove_level_coord=True, model=lfric)
-    except iris.exceptions.CoordinateNotFoundError:
+    except CoNotFound:
         pass
     if cube.units == "ms-1":
         cube.units = "m s-1"
@@ -253,16 +266,16 @@ def lfric_callback_uniform_height(cube, field, filename, model_top_height):
 
 def add_time_coord(cube, field, filename, time_origin=TIME_ORIGIN):
     """Extract time from filename and add as aux coord to cube."""
-    dt = datetime.strptime(Path(filename).stem.split("_")[-1].split("-")[1], "%Y%m%d")
-    dt_sec = (dt - datetime.strptime(time_origin, "%Y-%m-%d %H:%M:%S")).total_seconds()
-    time_coord = iris.coords.AuxCoord(
+    dt = datetime.strptime(Path(filename).stem.split("_")[-1].split("-")[1], "%Y%m%d")  # noqa: DTZ007
+    dt_sec = (dt - datetime.strptime(time_origin, "%Y-%m-%d %H:%M:%S")).total_seconds()  # noqa: DTZ007
+    time_coord = AuxCoord(
         dt_sec,
         standard_name="time",
         units=f"seconds since {time_origin}",
     )
     cube.add_aux_coord(time_coord)
-    cube = iris.util.new_axis(cube, "time")
-    iris.util.promote_aux_coord_to_dim_coord(cube, "time")
+    cube = new_axis(cube, "time")
+    promote_aux_coord_to_dim_coord(cube, "time")
 
 
 def chain_callbacks(*callbacks):
@@ -359,7 +372,7 @@ def ke_spectrum(u_cube, v_cube, gridtype="regular", rsphere=EARTH_RADIUS):
     # Move the wavenumber axis (currently first) to last, and restore the
     # shape/order of the non-lat-lon ("other") dimensions.
     other_shape = info["intermediate_shape"][2:]
-    ke_n = np.moveaxis(ke_n.reshape((ntrunc,) + other_shape), 0, -1)
+    ke_n = np.moveaxis(ke_n.reshape((ntrunc,) + other_shape), 0, -1)  # type: ignore
 
     other_dims = [d for d in range(u_cube.ndim) if d not in (lat_dim, lon_dim)]
     dim_coords_and_dims = []
@@ -367,10 +380,10 @@ def ke_spectrum(u_cube, v_cube, gridtype="regular", rsphere=EARTH_RADIUS):
         for coord in u_cube.coords(dim_coords=True):
             if u_cube.coord_dims(coord) == (orig_dim,):
                 dim_coords_and_dims.append((coord.copy(), new_dim))
-    wavenumber_coord = iris.coords.DimCoord(n, long_name="wavenumber", units="1")
+    wavenumber_coord = DimCoord(n, long_name="wavenumber", units="1")
     dim_coords_and_dims.append((wavenumber_coord, ke_n.ndim - 1))
 
-    return iris.cube.Cube(
+    return Cube(
         ke_n,
         long_name="kinetic_energy_spectrum",
         units="m2 s-2",
