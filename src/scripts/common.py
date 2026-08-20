@@ -43,6 +43,7 @@ class InternalFlux:
     decorr_timescale: float = 100000.0
     wavenumber: int = 20
     method: Literal["uniform", "non_uniform", "random_harmonics"] = "random_harmonics"
+    heating_amplitude: float = 0.0
 
 
 @dataclass
@@ -114,15 +115,39 @@ EXPERIMENTS = {
     "dhj_c48_l66": replace(DHJ_BASE),
     "dhj_c24_l66": replace(DHJ_BASE, label="c24_l66", resolution="C24", timestep=75),
     "dhj_c96_l66": replace(DHJ_BASE, label="c96_l66", resolution="C96", timestep=30),
+    "dhj_c48_l66_s0p5_m90": replace(
+        DHJ_BASE,
+        group="dhj_s",
+        label="c48_s0p5_m90",
+        stretch_factor=0.5,
+        target_lon=-90,
+    ),
+    "dhj_c48_l66_s0p5_p90": replace(
+        DHJ_BASE,
+        group="dhj_s",
+        label="c48_s0p5_p90",
+        stretch_factor=0.5,
+        target_lon=90,
+    ),
     # hd209
     "hd209_base_c48": replace(HD209_BASE),
-    "hd209_uniform_t100k_c48": replace(
-        HD209_BASE, label="uniform_t100k_c48"
-    ),  # TODO: rename! flux=0
+    "hd209_int_flux_zero": replace(
+        HD209_BASE, label="int_flux_zero", internal_flux=InternalFlux(value=0.0)
+    ),
     "hd209_rand_t100k_nf20_tau1e5": replace(
         HD209_BASE,
         label="rand_t100k_nf20_tau1e5",
         internal_flux=InternalFlux(method="random_harmonics"),
+    ),
+    "hd209_rand_t300k_nf20_tau1e5": replace(
+        HD209_BASE,
+        label="rand_t300k_nf20_tau1e5",
+        internal_flux=InternalFlux(method="random_harmonics", value=459.299727),
+    ),
+    "hd209_rand_t100k_nf20_tau1e5_amp5e-5": replace(
+        HD209_BASE,
+        label="rand_t100k_nf20_tau1e5_amp5e-5",
+        internal_flux=InternalFlux(method="random_harmonics", heating_amplitude=5e-5),
     ),
     # old
     # "shj_base_c48": replace(SHJ_BASE),
@@ -187,6 +212,31 @@ CATEGORIES = {
     ),
     "rt": Category(
         title="Radiative Transfer",
+        simulations=(k for k in EXPERIMENTS if k.startswith("hd209")),
+    ),
+}
+
+
+@dataclass
+class Group:
+    """Details for a group of simulations."""
+
+    title: str
+    simulations: Iterable
+    kw_plt: dict = field(default_factory=dict)
+
+
+GROUPS = {
+    "shj": Group(
+        title="Shallow Hot Jupiter",
+        simulations=(k for k in EXPERIMENTS if k.startswith("shj")),
+    ),
+    "dhj": Group(
+        title="Deep Hot Jupiter",
+        simulations=(k for k in EXPERIMENTS if k.startswith("dhj")),
+    ),
+    "hd209": Group(
+        title="HD 209458b",
         simulations=(k for k in EXPERIMENTS if k.startswith("hd209")),
     ),
 }
