@@ -7,6 +7,7 @@ version = "0.1.0"
 
 [tasks]
 download-data = { cmd = "python download_data.py", cwd = "src/scripts" }
+quicklook = { cmd = "python quicklook.py", cwd = "src/scripts" }
 
 [dependencies]
 python = ">=3.13.5,<3.14"
@@ -17,6 +18,10 @@ pandas = ">=2.3.1,<3"
 f90nml = ">=1.4.4,<2"
 python-stratify = ">=0.4.0,<0.5"
 windspharm = ">=2.0.0,<3"
+netcdf4 = ">=1.7.4,<2"
+tqdm = ">=4.70.0,<5"
+ipywidgets = ">=8.1.8,<9"
+click = ">=8.4.2,<9"
 
 [pypi-dependencies]
 ncdump-rich = ">=0.5.2, <0.6"
