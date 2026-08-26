@@ -38,11 +38,7 @@ from aeolus.coord import get_cube_rel_days, interp_cube_from_height_to_pressure_
 from aeolus.lfric import load_lfric_raw
 from aeolus.model import lfric
 from aeolus.plot import figsave, stream
-from common import CATEGORIES, EXPERIMENTS, lfric_callback_uniform_height
-
-# Diagnostics missing from the standard aeolus model container
-lfric.w = "w_in_w3"  # type: ignore
-lfric.dt_force = "temperature_increment_from_external_forcing"  # type: ignore
+from common import CATEGORIES, EXPERIMENTS, GROUPS, lfric_callback_uniform_height
 
 LATLON_GLOB = "lfric_diag_latlon*.nc"
 PA_TO_BAR = 1e-5
@@ -259,8 +255,23 @@ def plot_quicklook(dset, exp_key, opts):
     "exp_keys",
     type=click.Choice(sorted(EXPERIMENTS)),
     multiple=True,
-    required=True,
     help="Experiment key; repeatable.",
+)
+@click.option(
+    "-g",
+    "--group",
+    "group_keys",
+    type=click.Choice(sorted(GROUPS)),
+    multiple=True,
+    help="Run for all experiments in this group; repeatable.",
+)
+@click.option(
+    "-c",
+    "--category",
+    "category_keys",
+    type=click.Choice(sorted(CATEGORIES)),
+    multiple=True,
+    help="Run for all experiments in this category; repeatable.",
 )
 @click.option(
     "-d",
@@ -332,17 +343,32 @@ def plot_quicklook(dset, exp_key, opts):
     default=None,
     help="Output directory. Default: src/figures/drafts/EXP/.",
 )
-def main(exp_keys, **kwargs):
+def main(exp_keys, group_keys, category_keys, **kwargs):
     """
     Plot a four-panel quick-look overview of one LFRic diagnostic.
+
+    Experiments may be selected individually with -e, or in bulk by group
+    (-g) or category (-c); the three options combine and duplicates are
+    dropped.
 
     \b
     Examples:
       quicklook.py -e hd209_rand_t100k_nf20_tau1e5
       quicklook.py -e shj_c48_l32 -d temp -p 10000 --norm linear --cmap magma
+      quicklook.py -g shj -g dhj -d temp
+      quicklook.py -c rt -d temp
     """
+    all_exp_keys = dict.fromkeys(exp_keys)
+    for group_key in dict.fromkeys(group_keys):
+        all_exp_keys.update(dict.fromkeys(GROUPS[group_key].simulations))
+    for category_key in dict.fromkeys(category_keys):
+        all_exp_keys.update(dict.fromkeys(CATEGORIES[category_key].simulations))
+    if not all_exp_keys:
+        msg = "Specify at least one experiment (-e), group (-g), or category (-c)."
+        raise click.UsageError(msg)
+
     opts = PlotOpts(**kwargs)
-    for exp_key in exp_keys:
+    for exp_key in all_exp_keys:
         dset = load_dataset(exp_key)
         fig = plot_quicklook(dset, exp_key, opts)
         outdir = opts.outdir or paths.drafts / exp_key

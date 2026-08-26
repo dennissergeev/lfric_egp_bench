@@ -26,6 +26,9 @@ PROJECT = "lfric_egp_bench"
 TIME_ORIGIN = "2000-01-01 00:00:00"
 EARTH_RADIUS = 6_371_200.0  # metres
 
+# Diagnostics missing from the standard aeolus model container
+lfric.w = "w_in_w3"  # type: ignore
+lfric.dt_force = "temperature_increment_from_external_forcing"  # type: ignore
 um.dt_force = "m01s53i181"  # type: ignore
 lfric.du_force = "eastward_wind_increment_from_external_forcing"  # type: ignore
 um.du_force = "m01s13i385"  # type: ignore
@@ -62,6 +65,7 @@ class Experiment:
     target_lon: float = 0.0  # focus of stretching
     category: str = ""
     internal_flux: InternalFlux | None = None
+    kw_plt: dict = field(default_factory=dict)
 
 
 SHJ_BASE = Experiment(
