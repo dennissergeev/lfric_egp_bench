@@ -62,6 +62,7 @@ class PlotOpts:
     vmax: float | None
     vcenter: float
     do_stream: bool
+    linear_pressure: bool
     outdir: Path | None
 
 
@@ -105,11 +106,11 @@ def make_norm(opts):
     return mcol.TwoSlopeNorm(vcenter=opts.vcenter, vmin=opts.vmin, vmax=opts.vmax)
 
 
-def setup_pressure_axis(ax):
-    """Make the y axis a logarithmic pressure axis increasing downwards."""
+def setup_pressure_axis(ax, *, linear=False):
+    """Make the y axis a pressure axis increasing downwards, log by default."""
     ax.set_ylabel("Pressure [bar]")
     ax.invert_yaxis()
-    ax.set_yscale("log")
+    ax.set_yscale("linear" if linear else "log")
 
 
 def setup_latitude_axis(ax, which="y"):
@@ -176,7 +177,7 @@ def plot_quicklook(dset, exp_key, opts):
     ax = axd["z-y"]
     ax.set_title(f"{opts.n_days_mean:.0f}-day and zonal mean")
     setup_latitude_axis(ax, which="x")
-    setup_pressure_axis(ax)
+    setup_pressure_axis(ax, linear=opts.linear_pressure)
     im = getattr(ax, opts.method_plt)(lats, pres_bar, var_zm_tm, **kw_plt)
     if opts.n_contours:
         cs = ax.contour(
@@ -192,7 +193,7 @@ def plot_quicklook(dset, exp_key, opts):
 
     ax = axd["t-z"]
     ax.set_title("Zonal mean, equator")
-    setup_pressure_axis(ax)
+    setup_pressure_axis(ax, linear=opts.linear_pressure)
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
     im = getattr(ax, opts.method_plt)(
@@ -204,7 +205,12 @@ def plot_quicklook(dset, exp_key, opts):
         **kw_plt,
     )
     ax.axhline(target_bar, **KW_REF_LINE)
-    ax.axvline(sim_days - opts.n_days_mean, **KW_REF_LINE)
+    ax.axvspan(
+        0,
+        sim_days - opts.n_days_mean,
+        color="k",
+        alpha=0.1,
+    )
 
     ax = axd["y-x"]
     ax.set_title(f"{opts.n_days_mean:.0f}-day mean, {target_bar:>5.2f} bar")
@@ -234,7 +240,12 @@ def plot_quicklook(dset, exp_key, opts):
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
     im = getattr(ax, opts.method_plt)(days, lats, zonal_mean(var_plev).data.T, **kw_plt)
-    ax.axvline(sim_days - opts.n_days_mean, **KW_REF_LINE)
+    ax.axvspan(
+        0,
+        sim_days - opts.n_days_mean,
+        color="k",
+        alpha=0.1,
+    )
 
     fig.colorbar(im, cax=axd["cbar"], orientation="vertical")
     fig.suptitle(
@@ -337,6 +348,12 @@ def plot_quicklook(dset, exp_key, opts):
     help="Overlay streamlines on the y-x panel.",
 )
 @click.option(
+    "--linear-pressure/--log-pressure",
+    "linear_pressure",
+    default=False,
+    help="Use a linear (instead of logarithmic) pressure axis.",
+)
+@click.option(
     "-o",
     "--outdir",
     type=click.Path(file_okay=False, path_type=Path),
@@ -371,7 +388,7 @@ def main(exp_keys, group_keys, category_keys, **kwargs):
     for exp_key in all_exp_keys:
         dset = load_dataset(exp_key)
         fig = plot_quicklook(dset, exp_key, opts)
-        outdir = opts.outdir or paths.drafts / exp_key
+        outdir = opts.outdir or paths.drafts  #  / exp_key
         figsave(fig, outdir / f"{exp_key}_{opts.diag_key}_quicklook")
         plt.close(fig)
 
