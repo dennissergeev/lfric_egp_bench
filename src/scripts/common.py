@@ -47,6 +47,7 @@ class InternalFlux:
     wavenumber: int = 20
     method: Literal["uniform", "non_uniform", "random_harmonics"] = "random_harmonics"
     heating_amplitude: float = 0.0
+    scale_heights: float = 1.0
 
 
 @dataclass
@@ -152,6 +153,13 @@ EXPERIMENTS = {
         HD209_BASE,
         label="rand_t100k_nf20_tau1e5_amp5e-5",
         internal_flux=InternalFlux(method="random_harmonics", heating_amplitude=5e-5),
+    ),
+    "hd209_rand_t100k_nf20_tau1e5_amp5e-5_sclht4": replace(
+        HD209_BASE,
+        label="rand_t100k_nf20_tau1e5_amp5e-5_sclht4",
+        internal_flux=InternalFlux(
+            method="random_harmonics", heating_amplitude=5e-5, scale_heights=4.0
+        ),
     ),
     # old
     # "shj_base_c48": replace(SHJ_BASE),

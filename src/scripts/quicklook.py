@@ -32,6 +32,7 @@ import click
 import iris
 import matplotlib.colors as mcol
 import matplotlib.pyplot as plt
+import numpy as np
 import paths
 from aeolus.calc import last_n_day_mean, zonal_mean
 from aeolus.coord import get_cube_rel_days, interp_cube_from_height_to_pressure_levels
@@ -106,11 +107,17 @@ def make_norm(opts):
     return mcol.TwoSlopeNorm(vcenter=opts.vcenter, vmin=opts.vmin, vmax=opts.vmax)
 
 
-def setup_pressure_axis(ax, *, linear=False):
-    """Make the y axis a pressure axis increasing downwards, log by default."""
+def setup_pressure_axis(ax, lim=None, *, linear=False):
+    """Make the y axis a pressure axis increasing downwards, log by default.
+
+    `lim` is the (min, max) pressure range, applied top-down.
+    """
     ax.set_ylabel("Pressure [bar]")
-    ax.invert_yaxis()
     ax.set_yscale("linear" if linear else "log")
+    if lim is None:
+        ax.invert_yaxis()
+    else:
+        ax.set_ylim(max(lim), min(lim))
 
 
 def setup_latitude_axis(ax, which="y"):
@@ -150,20 +157,23 @@ def plot_quicklook(dset, exp_key, opts):
         v_plev = interp_cube_from_height_to_pressure_levels(
             v, pres_interp_uv, [opts.target_pressure]
         )
-    # Vertical coordinate shared by the pressure-axis panels
-    pres_equator = iris.util.squeeze(  # type: ignore
-        last_n_day_mean(
-            zonal_mean(
-                pres_interp_var.interpolate([(lfric.y, [0])], iris.analysis.Linear())  # type: ignore
-            ),  # type: ignore
-            opts.n_days_mean,
-        )
-    )
+    # Vertical coordinate of the pressure-axis panels: the time and zonal
+    # mean pressure on the (z, y) grid, used as such for the cross-section
+    # and sliced at the equator for the time-height panel.
+    pres_zm_tm = last_n_day_mean(zonal_mean(pres_interp_var), opts.n_days_mean)  # type: ignore
 
     lats = var.coord(lfric.y).points
     lons = var.coord(lfric.x).points
     days = get_cube_rel_days(var)
-    pres_bar = pres_equator.data * PA_TO_BAR
+    pres_bar_zy = pres_zm_tm.data * PA_TO_BAR
+    lats_zy = np.broadcast_to(lats, pres_bar_zy.shape)
+    # Latitude closest to the equator, shared by the time-height panel and
+    # its vertical axis so that both pressure axes match exactly
+    idx_eq = np.abs(lats).argmin()
+    lat_eq = lats[idx_eq]
+    pres_bar_eq = pres_bar_zy[:, idx_eq]
+    # Common vertical range of the two pressure-axis panels
+    pres_lim = (pres_bar_zy.min(), pres_bar_zy.max())
     target_bar = opts.target_pressure * PA_TO_BAR
     var_zm_tm = last_n_day_mean(zonal_mean(var), opts.n_days_mean).data  # type: ignore
     kw_plt = {"norm": make_norm(opts), "cmap": opts.cmap, "rasterized": True}
@@ -177,12 +187,12 @@ def plot_quicklook(dset, exp_key, opts):
     ax = axd["z-y"]
     ax.set_title(f"{opts.n_days_mean:.0f}-day and zonal mean")
     setup_latitude_axis(ax, which="x")
-    setup_pressure_axis(ax, linear=opts.linear_pressure)
-    im = getattr(ax, opts.method_plt)(lats, pres_bar, var_zm_tm, **kw_plt)
+    setup_pressure_axis(ax, pres_lim, linear=opts.linear_pressure)
+    im = getattr(ax, opts.method_plt)(lats_zy, pres_bar_zy, var_zm_tm, **kw_plt)
     if opts.n_contours:
         cs = ax.contour(
-            lats,
-            pres_bar,
+            lats_zy,
+            pres_bar_zy,
             var_zm_tm,
             opts.n_contours,
             colors="k",
@@ -193,14 +203,14 @@ def plot_quicklook(dset, exp_key, opts):
 
     ax = axd["t-z"]
     ax.set_title("Zonal mean, equator")
-    setup_pressure_axis(ax, linear=opts.linear_pressure)
+    setup_pressure_axis(ax, pres_lim, linear=opts.linear_pressure)
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
     im = getattr(ax, opts.method_plt)(
         days,
-        pres_bar,
+        pres_bar_eq,
         iris.util.squeeze(  # type: ignore
-            zonal_mean(var.interpolate([(lfric.y, [0])], iris.analysis.Linear()))  # type: ignore
+            zonal_mean(var.interpolate([(lfric.y, [lat_eq])], iris.analysis.Linear()))  # type: ignore
         ).data.T,
         **kw_plt,
     )
