@@ -41,7 +41,7 @@ from aeolus.model import lfric
 from aeolus.plot import figsave, stream
 from common import CATEGORIES, EXPERIMENTS, GROUPS, lfric_callback_uniform_height
 
-LATLON_GLOB = "lfric_diag_latlon*.nc"
+LATLON_GLOB = "lfric_diag_latlon*.nc"  # default; see --glob
 PA_TO_BAR = 1e-5
 # Line style of the reference lines marking the target pressure and mean period
 KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
@@ -67,13 +67,13 @@ class PlotOpts:
     outdir: Path | None
 
 
-def load_dataset(exp_key):
+def load_dataset(exp_key, file_glob=LATLON_GLOB):
     """Load the lat-lon diagnostic files of one experiment."""
     exp = EXPERIMENTS[exp_key]
     exp_dir = paths.data_work / "lfric" / exp.group / exp.label
-    files = sorted(exp_dir.glob(LATLON_GLOB))
+    files = sorted(exp_dir.glob(file_glob))
     if not files:
-        msg = f"No files matching {LATLON_GLOB} in {exp_dir}"
+        msg = f"No files matching {file_glob} in {exp_dir}"
         raise click.ClickException(msg)
     return load_lfric_raw(
         files,
@@ -364,13 +364,19 @@ def plot_quicklook(dset, exp_key, opts):
     help="Use a linear (instead of logarithmic) pressure axis.",
 )
 @click.option(
+    "--glob",
+    "file_glob",
+    default=LATLON_GLOB,
+    help="Glob for the input files within the experiment directory.",
+)
+@click.option(
     "-o",
     "--outdir",
     type=click.Path(file_okay=False, path_type=Path),
     default=None,
     help="Output directory. Default: src/figures/drafts/EXP/.",
 )
-def main(exp_keys, group_keys, category_keys, **kwargs):
+def main(exp_keys, group_keys, category_keys, file_glob, **kwargs):
     """
     Plot a four-panel quick-look overview of one LFRic diagnostic.
 
@@ -384,6 +390,7 @@ def main(exp_keys, group_keys, category_keys, **kwargs):
       quicklook.py -e shj_c48_l32 -d temp -p 10000 --norm linear --cmap magma
       quicklook.py -g shj -g dhj -d temp
       quicklook.py -c rt -d temp
+      quicklook.py -e shj_c48_l32 --glob "lfric_diag_regr*.nc"
     """
     all_exp_keys = dict.fromkeys(exp_keys)
     for group_key in dict.fromkeys(group_keys):
@@ -396,7 +403,7 @@ def main(exp_keys, group_keys, category_keys, **kwargs):
 
     opts = PlotOpts(**kwargs)
     for exp_key in all_exp_keys:
-        dset = load_dataset(exp_key)
+        dset = load_dataset(exp_key, file_glob)
         fig = plot_quicklook(dset, exp_key, opts)
         outdir = opts.outdir or paths.drafts  #  / exp_key
         figsave(fig, outdir / f"{exp_key}_{opts.diag_key}_quicklook")
