@@ -8,6 +8,7 @@ version = "0.1.0"
 [tasks]
 download-data = { cmd = "python download_data.py", cwd = "src/scripts" }
 quicklook = { cmd = "python quicklook.py", cwd = "src/scripts" }
+regrid = { cmd = "python regrid.py", cwd = "src/scripts" }
 
 [dependencies]
 python = ">=3.13.5,<3.14"
@@ -22,6 +23,7 @@ netcdf4 = ">=1.7.4,<2"
 tqdm = ">=4.70.0,<5"
 ipywidgets = ">=8.1.8,<9"
 click = ">=8.4.2,<9"
+iris-esmf-regrid = ">=0.15.0,<0.16"
 
 [pypi-dependencies]
 ncdump-rich = ">=0.5.2, <0.6"
