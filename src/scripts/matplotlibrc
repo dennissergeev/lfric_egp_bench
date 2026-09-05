@@ -4,7 +4,7 @@ mathtext.default : regular # The default font to use for math.
 
 font.size : 8.0
 axes.titlepad : 4.0
-axes.titleweight : "bold"
+# axes.titleweight : "bold"
 axes.labelsize : "small"
 axes.titlesize : "medium"
 
