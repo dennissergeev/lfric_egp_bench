@@ -39,12 +39,16 @@ from aeolus.coord import get_cube_rel_days, interp_cube_from_height_to_pressure_
 from aeolus.lfric import load_lfric_raw
 from aeolus.model import lfric
 from aeolus.plot import figsave, stream
-from common import CATEGORIES, EXPERIMENTS, GROUPS, lfric_callback_uniform_height
+from common import (
+    CATEGORIES,
+    EXPERIMENTS,
+    GROUPS,
+    KW_REF_LINE,
+    PA_TO_BAR,
+    lfric_callback_uniform_height,
+)
 
 LATLON_GLOB = "lfric_diag_latlon*.nc"  # default; see --glob
-PA_TO_BAR = 1e-5
-# Line style of the reference lines marking the target pressure and mean period
-KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
 
 
 @dataclass
@@ -165,7 +169,7 @@ def plot_quicklook(dset, exp_key, opts):
     lats = var.coord(lfric.y).points
     lons = var.coord(lfric.x).points
     days = get_cube_rel_days(var)
-    pres_bar_zy = pres_zm_tm.data * PA_TO_BAR
+    pres_bar_zy = pres_zm_tm.data * PA_TO_BAR  # type: ignore
     lats_zy = np.broadcast_to(lats, pres_bar_zy.shape)
     # Latitude closest to the equator, shared by the time-height panel and
     # its vertical axis so that both pressure axes match exactly

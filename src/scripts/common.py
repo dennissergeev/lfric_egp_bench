@@ -25,6 +25,7 @@ from windspharm.tools import order_latdim, prep_data
 PROJECT = "lfric_egp_bench"
 TIME_ORIGIN = "2000-01-01 00:00:00"
 EARTH_RADIUS = 6_371_200.0  # metres
+PA_TO_BAR = 1e-5
 # Line style of the reference lines marking the target pressure and mean period
 KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
 
@@ -285,19 +286,19 @@ class Group:
 GROUPS = {
     "shj": Group(
         title="Shallow Hot Jupiter",
-        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "shj"),
+        simulations=[k for k, v in EXPERIMENTS.items() if v.group == "shj"],
     ),
     "dhj": Group(
         title="Deep Hot Jupiter",
-        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "dhj"),
+        simulations=[k for k, v in EXPERIMENTS.items() if v.group == "dhj"],
     ),
     "dhj_s": Group(
         title="Deep Hot Jupiter, Stretched Mesh",
-        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "dhj_s"),
+        simulations=[k for k, v in EXPERIMENTS.items() if v.group == "dhj_s"],
     ),
     "hd209": Group(
         title="HD 209458b",
-        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "hd209"),
+        simulations=[k for k, v in EXPERIMENTS.items() if v.group == "hd209"],
     ),
 }
 
