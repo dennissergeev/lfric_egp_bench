@@ -25,6 +25,8 @@ from windspharm.tools import order_latdim, prep_data
 PROJECT = "lfric_egp_bench"
 TIME_ORIGIN = "2000-01-01 00:00:00"
 EARTH_RADIUS = 6_371_200.0  # metres
+# Line style of the reference lines marking the target pressure and mean period
+KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
 
 # Diagnostics missing from the standard aeolus model container
 lfric.w = "w_in_w3"  # type: ignore
@@ -70,7 +72,7 @@ class Experiment:
 
 
 SHJ_BASE = Experiment(
-    title="Shallow Hot Jupiter",
+    title="C48 L32 (control)",
     const=init_const("shj", directory=paths.const),
     group="shj",
     label="c48_l32",
@@ -80,10 +82,11 @@ SHJ_BASE = Experiment(
     n_levels=32,
     category="tf",
     internal_flux=None,
+    kw_plt={"color": "C0", "linewidth": 1.5},
 )
 
 DHJ_BASE = Experiment(
-    title="Deep Hot Jupiter",
+    title="C48 (control)",
     const=init_const("dhj", directory=paths.const),
     group="dhj",
     label="c48_l66",
@@ -93,6 +96,7 @@ DHJ_BASE = Experiment(
     n_levels=66,
     category="tf",
     internal_flux=None,
+    kw_plt={"color": "C0", "linewidth": 1.5},
 )
 
 HD209_BASE = Experiment(
@@ -106,33 +110,78 @@ HD209_BASE = Experiment(
     n_levels=66,
     category="rt",
     internal_flux=InternalFlux(),
+    kw_plt={"color": "C0", "linewidth": 1.5},
 )
 
 
 EXPERIMENTS = {
     # SHJ
     "shj_c48_l32": replace(SHJ_BASE),
-    "shj_c24_l32": replace(SHJ_BASE, label="c24_l32", resolution="C24", timestep=2400),
-    "shj_c96_l32": replace(SHJ_BASE, label="c96_l32", resolution="C96", timestep=600),
-    "shj_c48_l16": replace(SHJ_BASE, label="c48_l16", n_levels=16),
-    "shj_c48_l64": replace(SHJ_BASE, label="c48_l64", n_levels=64),
+    "shj_c24_l32": replace(
+        SHJ_BASE,
+        title="C24 L32",
+        label="c24_l32",
+        resolution="C24",
+        timestep=2400,
+        kw_plt={"color": "C1"},
+    ),
+    "shj_c96_l32": replace(
+        SHJ_BASE,
+        title="C96 L32",
+        label="c96_l32",
+        resolution="C96",
+        timestep=600,
+        kw_plt={"color": "C2"},
+    ),
+    "shj_c48_l16": replace(
+        SHJ_BASE,
+        title="C48 L16",
+        label="c48_l16",
+        n_levels=16,
+        kw_plt={"color": "C3"},
+    ),
+    "shj_c48_l64": replace(
+        SHJ_BASE,
+        title="C48 L64",
+        label="c48_l64",
+        n_levels=64,
+        kw_plt={"color": "C4"},
+    ),
     # DHJ
     "dhj_c48_l66": replace(DHJ_BASE),
-    "dhj_c24_l66": replace(DHJ_BASE, label="c24_l66", resolution="C24", timestep=75),
-    "dhj_c96_l66": replace(DHJ_BASE, label="c96_l66", resolution="C96", timestep=30),
+    "dhj_c24_l66": replace(
+        DHJ_BASE,
+        title="C24",
+        label="c24_l66",
+        resolution="C24",
+        timestep=75,
+        kw_plt={"color": "C1"},
+    ),
+    "dhj_c96_l66": replace(
+        DHJ_BASE,
+        title="C96",
+        label="c96_l66",
+        resolution="C96",
+        timestep=30,
+        kw_plt={"color": "C2"},
+    ),
     "dhj_c48_l66_s0p5_m90": replace(
         DHJ_BASE,
         group="dhj_s",
+        title=r"C48, x2 stretch @ -90$^\circ$",
         label="c48_s0p5_m90",
         stretch_factor=0.5,
         target_lon=-90,
+        kw_plt={"color": "C3", "linestyle": "dashed", "dash_capstyle": "round"},
     ),
     "dhj_c48_l66_s0p5_p90": replace(
         DHJ_BASE,
         group="dhj_s",
+        title=r"C48, x2 stretch @ +90$^\circ$",
         label="c48_s0p5_p90",
         stretch_factor=0.5,
         target_lon=90,
+        kw_plt={"color": "C4", "linestyle": "dashed", "dash_capstyle": "round"},
     ),
     # hd209
     "hd209_base_c48": replace(HD209_BASE),
@@ -161,18 +210,13 @@ EXPERIMENTS = {
             method="random_harmonics", heating_amplitude=5e-5, scale_heights=4.0
         ),
     ),
-    # old
-    # "shj_base_c48": replace(SHJ_BASE),
-    # "dhj_base_c24": replace(DHJ_BASE, timestep=75, resolution="C24"),
-    # "dhj_base_c48": replace(DHJ_BASE),
-    # "dhj_base_c96": replace(DHJ_BASE, resolution="C96"),
-    # "dhj_base_c192": replace(DHJ_BASE, timestep=15, resolution="C192"),
-    # "dhj_base_c24_s0p5_lon00": replace(
-    #     DHJ_BASE, timestep=75, resolution="C24", stretch_factor=0.5, target_lon=0.0
-    # ),
-    # "dhj_base_c24_s0p5_lon90": replace(
-    #     DHJ_BASE, timestep=75, resolution="C24", stretch_factor=0.5, target_lon=90.0
-    # ),
+    "hd209_rand_t100k_nf20_tau1e5_amp1e-3_sclht4": replace(
+        HD209_BASE,
+        label="rand_t100k_nf20_tau1e5_amp1e-3_sclht4",
+        internal_flux=InternalFlux(
+            method="random_harmonics", heating_amplitude=1e-3, scale_heights=4.0
+        ),
+    ),
 }
 
 
@@ -241,15 +285,19 @@ class Group:
 GROUPS = {
     "shj": Group(
         title="Shallow Hot Jupiter",
-        simulations=(k for k in EXPERIMENTS if k.startswith("shj")),
+        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "shj"),
     ),
     "dhj": Group(
         title="Deep Hot Jupiter",
-        simulations=(k for k in EXPERIMENTS if k.startswith("dhj")),
+        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "dhj"),
+    ),
+    "dhj_s": Group(
+        title="Deep Hot Jupiter, Stretched Mesh",
+        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "dhj_s"),
     ),
     "hd209": Group(
         title="HD 209458b",
-        simulations=(k for k in EXPERIMENTS if k.startswith("hd209")),
+        simulations=(k for k, v in EXPERIMENTS.items() if v.group == "hd209"),
     ),
 }
 
