@@ -11,7 +11,7 @@ target lat-lon grid with `MeshToGridESMFRegridder`.
 One output file is written per input file, mirroring its date span, so the
 result concatenates the same way the raw data does::
 
-    lfric_diag_main_20000101-20000111.nc -> lfric_diag_regr_20000101-20000111.nc
+    lfric_diag_main_20000101-20000111.nc -> lfric_diag_regr_nx144_ny90_20000101-20000111.nc
 
 The vertical `full_levels`/`half_levels` coordinates are left alone unless
 `--interp-vertically` is given, which puts every cube on the `full_levels`
@@ -90,8 +90,11 @@ def input_files(exp_key):
     return files
 
 
-def output_file(fname, exp_key, opts):
+def output_file(fname, exp_key, opts, tgt_cube):
     """Output path for one input file, keeping its date span.
+
+    The target grid dimensions are embedded in the output stem so that
+    files regridded to different resolutions do not overwrite each other.
 
     With an explicit `--outdir` the `<group>/<label>/` layout of the input
     tree is reproduced under it, so that experiments sharing a date span do
@@ -102,7 +105,10 @@ def output_file(fname, exp_key, opts):
     else:
         exp = EXPERIMENTS[exp_key]
         outdir = opts.outdir / exp.group / exp.label
-    return outdir / f"{fname.name.replace(RAW_STEM, OUT_STEM, 1)}"
+    nlat = tgt_cube.coord("latitude").shape[0]
+    nlon = tgt_cube.coord("longitude").shape[0]
+    out_stem = f"{OUT_STEM}_nx{nlon}_ny{nlat}"
+    return outdir / fname.name.replace(RAW_STEM, out_stem, 1)
 
 
 def horizontal_dim(cube):
@@ -213,7 +219,7 @@ def regrid_experiment(exp_key, tgt_cube, opts):
         )
     regridder = None
     for fname in input_files(exp_key):
-        fname_out = output_file(fname, exp_key, opts)
+        fname_out = output_file(fname, exp_key, opts, tgt_cube)
         if fname_out.is_file() and not opts.overwrite:
             click.echo(f"Skipping (exists): {fname_out}")
             continue

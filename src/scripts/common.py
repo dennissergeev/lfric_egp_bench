@@ -296,6 +296,10 @@ GROUPS = {
         title="Deep Hot Jupiter, Stretched Mesh",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group == "dhj_s"],
     ),
+    "dhj_all": Group(
+        title="Deep Hot Jupiter",
+        simulations=[k for k, v in EXPERIMENTS.items() if v.group in ["dhj", "dhj_s"]],
+    ),
     "hd209": Group(
         title="HD 209458b",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group == "hd209"],
