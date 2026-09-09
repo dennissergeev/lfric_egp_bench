@@ -6,9 +6,11 @@ platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 
 [tasks]
+anim-int-flux = { cmd = "python animate_internal_flux.py", cwd = "src/scripts" }
 download-data = { cmd = "python download_data.py", cwd = "src/scripts" }
 quicklook = { cmd = "python quicklook.py", cwd = "src/scripts" }
 regrid = { cmd = "python regrid.py", cwd = "src/scripts" }
+regrid-all = { cmd = "bash regrid_all.sh", cwd = "src/scripts" }
 
 [dependencies]
 python = ">=3.13.5,<3.14"
