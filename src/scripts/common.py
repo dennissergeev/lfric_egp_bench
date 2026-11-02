@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -20,8 +20,20 @@ from iris.util import new_axis, promote_aux_coord_to_dim_coord
 PROJECT = "lfric_egp_bench"
 TIME_ORIGIN = "2000-01-01 00:00:00"
 PA_TO_BAR = 1e-5
+# Diagnostic files written by XIOS on the regular lat-lon grid
+LATLON_GLOB = "lfric_diag_latlon*.nc"
 # Line style of the reference lines marking the target pressure and mean period
 KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
+# Global attributes common to all netCDF files written by the project scripts
+GLOBAL_ATTRS = {
+    "project": PROJECT,
+    "creator_name": "Denis E. Sergeev",
+    "creator_email": "denis.sergeev@bristol.ac.uk",
+    "creator_institution": "University of Bristol",
+    "institution": "University of Bristol",
+    "source": "LFRic atmosphere model (lfric_atm)",
+    "coverage_content_type": "modelResult",
+}
 
 # Diagnostics missing from the standard aeolus model container
 lfric.w = "w_in_w3"  # type: ignore
@@ -212,7 +224,88 @@ EXPERIMENTS = {
             method="random_harmonics", heating_amplitude=1e-3, scale_heights=4.0
         ),
     ),
+    "hd209_rand_t100k_nf20_tau1e5_amp1e-2_sclht6": replace(
+        HD209_BASE,
+        label="rand_t100k_nf20_tau1e5_amp1e-2_sclht6",
+        internal_flux=InternalFlux(
+            method="random_harmonics", heating_amplitude=1e-2, scale_heights=6.0
+        ),
+    ),
+    "hd209_base_c48_nrad4": replace(
+        HD209_BASE,
+        label="base_c48_nrad4",
+        run_length=1200,
+    ),
+    "hd209_base_c48_nrad4_new": replace(
+        HD209_BASE,
+        label="base_c48_nrad4_new",
+        run_length=12000,
+    ),
 }
+
+
+AWS_EXPERIMENTS = {
+    # SHJ, 24x16 processors
+    "aws_shj_arm": replace(
+        SHJ_BASE,
+        title="SHJ C48 L32 (ARM)",
+        group="aws-test",
+        label="u-dr932-arm-1200-24x16",
+    ),
+    "aws_shj_x86": replace(
+        SHJ_BASE,
+        title="SHJ C48 L32 (x86)",
+        group="aws-test",
+        label="u-dr932-x86-1200-24x16",
+    ),
+    # DHJ
+    "aws_dhj_arm": replace(
+        DHJ_BASE,
+        title="DHJ C48 (ARM)",
+        group="aws-test",
+        label="u-dr932-dhj-arm",
+        run_length=100,
+        timestep=50,
+    ),
+    "aws_dhj_x86": replace(
+        DHJ_BASE,
+        title="DHJ C48 (x86)",
+        group="aws-test",
+        label="u-dr932-dhj-x86",
+        run_length=100,
+        timestep=50,
+    ),
+    "aws_dhj_x86_fmoff": replace(
+        DHJ_BASE,
+        title="DHJ C48 (x86, fast-math off)",
+        group="aws-test",
+        label="u-dr932-dhj-x86-fmoff",
+        run_length=100,
+        timestep=50,
+    ),
+}
+
+
+def exp_global_attrs(exp_key, experiments=EXPERIMENTS):
+    """Global attributes of a netCDF file describing one experiment."""
+    exp = experiments[exp_key]
+    attrs = {
+        **GLOBAL_ATTRS,
+        "name": exp_key,
+        "group": exp.group,
+        "label": exp.label,
+        "resolution": exp.resolution,
+        "n_levels": exp.n_levels,
+        "timestep_s": exp.timestep,
+        "run_length_days": exp.run_length,
+        "stretch_factor": exp.stretch_factor,
+        "target_lon": exp.target_lon,
+        "date_created": f"{datetime.now(UTC):%Y-%m-%dT%H:%M:%SZ}",
+    }
+    if exp.internal_flux is not None:
+        for key, value in vars(exp.internal_flux).items():
+            attrs[f"internal_flux_{key}"] = value
+    return attrs
 
 
 @dataclass
@@ -223,7 +316,7 @@ class BenchModel:
     kw_plt: dict = field(default_factory=dict)
     model: Model = lfric
     details: str = ""
-    datetime_start: datetime = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007, RUF009
+    datetime_start: datetime = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")  # noqa: RUF009
 
 
 MODELS = {
@@ -375,8 +468,8 @@ def lfric_callback_uniform_height(cube, field, filename, model_top_height):
 
 def add_time_coord(cube, field, filename, time_origin=TIME_ORIGIN):
     """Extract time from filename and add as aux coord to cube."""
-    dt = datetime.strptime(Path(filename).stem.split("_")[-1].split("-")[1], "%Y%m%d")  # noqa: DTZ007
-    dt_sec = (dt - datetime.strptime(time_origin, "%Y-%m-%d %H:%M:%S")).total_seconds()  # noqa: DTZ007
+    dt = datetime.strptime(Path(filename).stem.split("_")[-1].split("-")[1], "%Y%m%d")
+    dt_sec = (dt - datetime.strptime(time_origin, "%Y-%m-%d %H:%M:%S")).total_seconds()
     time_coord = AuxCoord(
         dt_sec,
         standard_name="time",

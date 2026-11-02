@@ -25,6 +25,8 @@ const = scripts / "const"
 data_work = src / "data"
 # data = root.parent / "data"
 
+aws_pack = data_work / "lfric" / "aws-test" / "pack-final-uoe-lfric" / "pack"
+
 # Ancillary files
 ancil = data_work / "ancil"
 

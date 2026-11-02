@@ -11,6 +11,7 @@ import iris
 
 # Local modules
 import paths
+from common import GLOBAL_ATTRS
 from shared import MODELS, TF_CASES
 from tqdm import tqdm
 
@@ -18,14 +19,11 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore")
 
 # Define global attributes of the output file
-GLOBAL_ATTRS = {
+GL_ATTRS = {
+    **GLOBAL_ATTRS,
     "summary": "Model data for Sergeev et al. (in prep.)",
     "conventions": "CF-1.7,ACDD-1.3",
-    "creator_name": "Denis Sergeev",
-    "creator_email": "d.sergeev@exeter.ac.uk",
-    "creator_institution": "University of Exeter",
     "project": "Exascale Exoplanet Modelling",
-    "coverage_content_type": "modelResult",
 }
 
 # Combine all experiments into one dictionary
@@ -59,9 +57,9 @@ for model_key, model_prop in tqdm(MODELS.items()):
             / f"{sim_label}_{sim_prop['proc_fname_suffix']}_time_mean.nc"
         )
         # Update global attributes to insert the name of the model
-        GLOBAL_ATTRS["title"] = f"Model Output from {model_prop['title']}"
-        GLOBAL_ATTRS["date_created"] = (
+        GL_ATTRS["title"] = f"Model Output from {model_prop['title']}"
+        GL_ATTRS["date_created"] = (
             f"{datetime.utcnow():%Y-%m-%d %H:%M:%S} GMT"
         )
         # Save the result
-        save_cubelist(dset_tm, fname_out, **GLOBAL_ATTRS)
+        save_cubelist(dset_tm, fname_out, **GL_ATTRS)

@@ -45,7 +45,7 @@ from aeolus.lfric import (
     replace_level_coord_with_height,
 )
 from aeolus.model import lfric
-from common import CATEGORIES, EXPERIMENTS, GROUPS, PROJECT
+from common import CATEGORIES, EXPERIMENTS, GROUPS, exp_global_attrs
 from iris.mesh import MeshXY
 
 # `iris` refuses to build a `GeogCS` for a non-Earth radius without this
@@ -201,13 +201,7 @@ def regrid_cubelist(cubelist, tgt_cube, opts, regridder=None):
 def regrid_experiment(exp_key, tgt_cube, opts):
     """Regrid and save every raw diagnostic file of one experiment."""
     exp = EXPERIMENTS[exp_key]
-    gl_attrs = {
-        "name": exp_key,
-        "project": PROJECT,
-        "group": exp.group,
-        "label": exp.label,
-        "processed": "True",
-    }
+    gl_attrs = {**exp_global_attrs(exp_key), "processed": "True"}
     # Vertical interpolation needs a `level_height` coord to interpolate onto.
     # It is added alongside the `full_levels`/`half_levels` coords rather than
     # replacing them, because those still identify which cubes need it.

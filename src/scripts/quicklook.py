@@ -44,11 +44,11 @@ from common import (
     EXPERIMENTS,
     GROUPS,
     KW_REF_LINE,
+    LATLON_GLOB,
     PA_TO_BAR,
     lfric_callback_uniform_height,
 )
 
-LATLON_GLOB = "lfric_diag_latlon*.nc"  # default; see --glob
 
 
 @dataclass
