@@ -17,6 +17,11 @@ With `--gaussian` the target grid has Gaussian instead of equally spaced
 latitudes (see `common.create_gaussian_cube`), and `_gauss` is added to the
 output stem, e.g. `lfric_diag_regr_gauss_nx192_ny96_20000101-20000111.nc`.
 
+By default it includes only: vorticity, divergence and the horizontal wind components;
+select others with `--var` or keep everything with `--all-vars`.
+The reference cube (`--ref-cube`) is always read, since it defines the source mesh,
+but is saved only if selected.
+
 The vertical `full_levels`/`half_levels` coordinates are left alone unless
 `--interp-vertically` is given, which puts every cube on the `full_levels`
 height grid of the reference cube.
@@ -73,7 +78,15 @@ RAW_GLOB = "lfric_diag_main*.nc"
 RAW_STEM = "lfric_diag_main"
 OUT_STEM = "lfric_diag_regr"
 # Cube used to define the mesh and, with --interp-vertically, the target levels
-REF_CUBE_NAME = "air_temperature"
+REF_CUBE_NAME = "pressure_in_wth"
+# Cubes saved by default
+DEF_VAR_NAMES = (
+    "vertical_vorticity",
+    "divergence_of_wind",
+    "u_in_w3",
+    "v_in_w3",
+    "pressure_in_wth",
+)
 
 
 @dataclass
@@ -87,6 +100,8 @@ class RegridOpts:
     gaussian: bool
     pm180: bool
     ref_cube_name: str
+    var_names: tuple[str, ...]
+    all_vars: bool
     interp_vertically: bool
     overwrite: bool
     outdir: Path | None
@@ -171,8 +186,27 @@ def attach_mesh(cube, mesh, dim):
     return out
 
 
+def cube_names(cube):
+    """All names a cube can be selected by: standard, long and variable name."""
+    return {cube.standard_name, cube.long_name, cube.var_name} - {None}
+
+
+def select_cubes(cubelist, opts):
+    """Cubes of `cubelist` to be saved, as chosen by `--var`/`--all-vars`."""
+    if opts.all_vars:
+        return cubelist
+    selected = iris.cube.CubeList(  # type: ignore
+        cube for cube in cubelist if cube_names(cube) & set(opts.var_names)
+    )
+    found = set().union(*(cube_names(cube) for cube in selected))
+    if missing := set(opts.var_names) - found:
+        msg = f"Variables not found in the data: {sorted(missing)}"
+        raise click.ClickException(msg)
+    return selected
+
+
 def regrid_cubelist(cubelist, tgt_cube, opts, regridder=None):
-    """Regrid every mesh cube of `cubelist`, reusing `regridder` if given.
+    """Regrid the selected mesh cubes of `cubelist`, reusing `regridder` if given.
 
     Returns the regridded cube list and the regridder, so that the weights
     are computed once and reused across the files of an experiment.
@@ -197,7 +231,7 @@ def regrid_cubelist(cubelist, tgt_cube, opts, regridder=None):
         )
 
     result = iris.cube.CubeList()  # type: ignore
-    for cube in cubelist:
+    for cube in select_cubes(cubelist, opts):
         dim = horizontal_dim(cube)
         if dim is None:
             # Nothing to regrid, e.g. a scalar or purely vertical diagnostic
@@ -315,6 +349,19 @@ def regrid_experiment(exp_key, tgt_cube, opts):
     help="Cube defining the source mesh and the target vertical levels.",
 )
 @click.option(
+    "-v",
+    "--var",
+    "var_names",
+    multiple=True,
+    default=DEF_VAR_NAMES,
+    help="Standard, long or variable name of a cube to save; repeatable.",
+)
+@click.option(
+    "--all-vars/--selected-vars",
+    default=False,
+    help="Save all cubes, ignoring --var.",
+)
+@click.option(
     "--interp-vertically/--no-interp-vertically",
     default=False,
     help="Put all cubes on the height levels of the reference cube.",
@@ -345,6 +392,8 @@ def main(exp_keys, group_keys, category_keys, **kwargs):
       regrid.py -e dhj_c48_l66 --n-res 96 --overwrite
       regrid.py -e dhj_c48_l66 --gaussian --nlat 96 --nlon 192
       regrid.py -e dhj_c48_l66 --n-gauss 48
+      regrid.py -e dhj_c48_l66 -v air_temperature -v air_pressure
+      regrid.py -e dhj_c48_l66 --all-vars
       regrid.py -g shj -g dhj
       regrid.py -c tf -o /scratch/regridded
     """
