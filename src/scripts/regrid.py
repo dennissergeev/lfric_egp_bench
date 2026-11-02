@@ -13,6 +13,10 @@ result concatenates the same way the raw data does::
 
     lfric_diag_main_20000101-20000111.nc -> lfric_diag_regr_nx144_ny90_20000101-20000111.nc
 
+With `--gaussian` the target grid has Gaussian instead of equally spaced
+latitudes (see `common.create_gaussian_cube`), and `_gauss` is added to the
+output stem, e.g. `lfric_diag_regr_gauss_nx192_ny96_20000101-20000111.nc`.
+
 The vertical `full_levels`/`half_levels` coordinates are left alone unless
 `--interp-vertically` is given, which puts every cube on the `full_levels`
 height grid of the reference cube.
@@ -26,6 +30,14 @@ Regrid one experiment to the default 144x90 grid::
 Regrid a whole group to a finer grid, overwriting existing output::
 
     python regrid.py -g dhj --nlon 288 --nlat 180 --overwrite
+
+Regrid one experiment to a 192x96 Gaussian grid::
+
+    python regrid.py -e dhj_c48_l66 --gaussian --nlon 192 --nlat 96
+
+or, equivalently, with the Gaussian grid number N (`nlat = 2N`, `nlon = 4N`)::
+
+    python regrid.py -e dhj_c48_l66 --n-gauss 48
 """  # noqa: EXE002
 
 import os
@@ -45,7 +57,13 @@ from aeolus.lfric import (
     replace_level_coord_with_height,
 )
 from aeolus.model import lfric
-from common import CATEGORIES, EXPERIMENTS, GROUPS, exp_global_attrs
+from common import (
+    CATEGORIES,
+    EXPERIMENTS,
+    GROUPS,
+    create_gaussian_cube,
+    exp_global_attrs,
+)
 from iris.mesh import MeshXY
 
 # `iris` refuses to build a `GeogCS` for a non-Earth radius without this
@@ -65,6 +83,8 @@ class RegridOpts:
     nlat: int
     nlon: int
     n_res: int | None
+    n_gauss: int | None
+    gaussian: bool
     pm180: bool
     ref_cube_name: str
     interp_vertically: bool
@@ -74,6 +94,10 @@ class RegridOpts:
 
 def make_target_cube(opts):
     """Dummy cube defining the target lat-lon grid."""
+    if opts.gaussian:
+        if opts.n_gauss is not None:
+            return create_gaussian_cube(n_gauss=opts.n_gauss, pm180=opts.pm180)
+        return create_gaussian_cube(nlat=opts.nlat, nlon=opts.nlon, pm180=opts.pm180)
     if opts.n_res is not None:
         return create_dummy_cube(n_res=opts.n_res, pm180=opts.pm180)
     return create_dummy_cube(nlat=opts.nlat, nlon=opts.nlon, pm180=opts.pm180)
@@ -93,8 +117,8 @@ def input_files(exp_key):
 def output_file(fname, exp_key, opts, tgt_cube):
     """Output path for one input file, keeping its date span.
 
-    The target grid dimensions are embedded in the output stem so that
-    files regridded to different resolutions do not overwrite each other.
+    The target grid type and dimensions are embedded in the output stem so
+    that files regridded to different grids do not overwrite each other.
 
     With an explicit `--outdir` the `<group>/<label>/` layout of the input
     tree is reproduced under it, so that experiments sharing a date span do
@@ -107,7 +131,8 @@ def output_file(fname, exp_key, opts, tgt_cube):
         outdir = opts.outdir / exp.group / exp.label
     nlat = tgt_cube.coord("latitude").shape[0]
     nlon = tgt_cube.coord("longitude").shape[0]
-    out_stem = f"{OUT_STEM}_nx{nlon}_ny{nlat}"
+    grid = "_gauss" if opts.gaussian else ""
+    out_stem = f"{OUT_STEM}{grid}_nx{nlon}_ny{nlat}"
     return outdir / fname.name.replace(RAW_STEM, out_stem, 1)
 
 
@@ -201,7 +226,11 @@ def regrid_cubelist(cubelist, tgt_cube, opts, regridder=None):
 def regrid_experiment(exp_key, tgt_cube, opts):
     """Regrid and save every raw diagnostic file of one experiment."""
     exp = EXPERIMENTS[exp_key]
-    gl_attrs = {**exp_global_attrs(exp_key), "processed": "True"}
+    gl_attrs = {
+        **exp_global_attrs(exp_key),
+        "processed": "True",
+        "grid": "gaussian" if opts.gaussian else "regular",
+    }
     # Vertical interpolation needs a `level_height` coord to interpolate onto.
     # It is added alongside the `full_levels`/`half_levels` coords rather than
     # replacing them, because those still identify which cubes need it.
@@ -261,6 +290,20 @@ def regrid_experiment(exp_key, tgt_cube, opts):
     help="Target grid in UM N-notation; overrides --nlat and --nlon.",
 )
 @click.option(
+    "--n-gauss",
+    type=int,
+    default=None,
+    help=(
+        "Gaussian grid number N (nlat=2N, nlon=4N); implies --gaussian and"
+        " overrides --nlat and --nlon."
+    ),
+)
+@click.option(
+    "--gaussian/--regular",
+    default=False,
+    help="Use Gaussian latitudes; the size is set by --nlat and --nlon.",
+)
+@click.option(
     "--pm180/--no-pm180",
     default=False,
     help="Span longitudes -180 to 180 instead of 0 to 360.",
@@ -300,6 +343,8 @@ def main(exp_keys, group_keys, category_keys, **kwargs):
     Examples:
       regrid.py -e shj_c48_l32
       regrid.py -e dhj_c48_l66 --n-res 96 --overwrite
+      regrid.py -e dhj_c48_l66 --gaussian --nlat 96 --nlon 192
+      regrid.py -e dhj_c48_l66 --n-gauss 48
       regrid.py -g shj -g dhj
       regrid.py -c tf -o /scratch/regridded
     """
@@ -313,6 +358,14 @@ def main(exp_keys, group_keys, category_keys, **kwargs):
         raise click.UsageError(msg)
 
     opts = RegridOpts(**kwargs)
+    if opts.n_gauss is not None:
+        opts.gaussian = True
+    if opts.gaussian and opts.n_res is not None:
+        msg = (
+            "--n-res is the UM N-notation; use --n-gauss, or --nlat and --nlon,"
+            " with --gaussian."
+        )
+        raise click.UsageError(msg)
     tgt_cube = make_target_cube(opts)
     for exp_key in all_exp_keys:
         click.echo(f"Regridding {exp_key}")

@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
 import paths
 from aeolus.const import init_const
 from aeolus.const.const import ConstContainer
@@ -13,8 +14,11 @@ from aeolus.coord import ensure_bounds
 from aeolus.lfric import add_equally_spaced_height_coord, fix_time_coord
 from aeolus.model import lfric, um
 from aeolus.model.base import Model
-from iris.coords import AuxCoord
+from iris.coord_systems import GeogCS
+from iris.coords import AuxCoord, DimCoord
+from iris.cube import Cube
 from iris.exceptions import CoordinateNotFoundError as CoNotFound
+from iris.fileformats.pp import EARTH_RADIUS
 from iris.util import new_axis, promote_aux_coord_to_dim_coord
 
 PROJECT = "lfric_egp_bench"
@@ -501,3 +505,82 @@ def chain_callbacks(*callbacks):
             cb(cube, field, filename)
 
     return combined
+
+
+def create_gaussian_cube(nlat=None, nlon=None, n_gauss=None, pm180=False, radius=None):
+    """
+    Create a dummy 2D cube on a regular Gaussian lat-lon grid.
+
+    A counterpart of `aeolus.io.create_dummy_cube`, with latitudes at the
+    Gauss-Legendre quadrature nodes instead of equally spaced. The latitude
+    bounds are placed so that the area of each latitude band matches its
+    quadrature weight, i.e. `sin(bound)` is the cumulative sum of the weights.
+    Longitudes are equally spaced, starting at 0 (or -180 if `pm180`).
+
+    Parameters
+    ----------
+    nlat: int, optional
+        Number of points in latitude. Not needed if `n_gauss` is given.
+    nlon: int, optional
+        Number of points in longitude. Not needed if `n_gauss` is given.
+    n_gauss: int, optional
+        Gaussian grid number N, the number of latitudes between a pole and the
+        equator. If given, `nlat = 2 * N` and `nlon = 4 * N`.
+        Note that this is not the UM N-notation used by `create_dummy_cube`.
+    pm180: bool, optional
+        Use -/+180 instead of 0 to 360 for the longitude span.
+    radius: float, optional
+        Planet radius (m) of the coordinate system. Default: Earth radius.
+
+    Returns
+    -------
+    iris.cube.Cube
+        A dummy 2D cube of zeros.
+
+    Examples
+    --------
+    >>> create_gaussian_cube(nlat=96, nlon=192)
+    >>> create_gaussian_cube(n_gauss=48)
+    """
+    if n_gauss is not None:
+        nlat = 2 * n_gauss
+        nlon = 4 * n_gauss
+    if nlat is None or nlon is None:
+        msg = "Give either `n_gauss` or both `nlat` and `nlon`."
+        raise ValueError(msg)
+
+    geog_cs = GeogCS(EARTH_RADIUS if radius is None else radius)
+
+    # Latitude: Gauss-Legendre nodes in sin(lat), ascending from south to north
+    nodes, weights = np.polynomial.legendre.leggauss(nlat)
+    lats = np.rad2deg(np.arcsin(nodes))
+    sin_bounds = np.clip(np.concatenate([[-1.0], np.cumsum(weights) - 1.0]), -1, 1)
+    sin_bounds[-1] = 1.0
+    lat_bounds = np.rad2deg(np.arcsin(sin_bounds))
+    lat_coord = DimCoord(
+        lats,
+        standard_name="latitude",
+        units="degrees",
+        bounds=np.column_stack([lat_bounds[:-1], lat_bounds[1:]]),
+        coord_system=geog_cs,
+    )
+
+    # Longitude
+    lons = np.arange(nlon) * 360.0 / nlon
+    if pm180:
+        lons -= 180.0
+    lon_coord = DimCoord(
+        lons,
+        standard_name="longitude",
+        units="degrees",
+        circular=True,
+        coord_system=geog_cs,
+    )
+    lon_coord.guess_bounds()
+
+    return Cube(
+        np.zeros((nlat, nlon), dtype=np.int32),
+        dim_coords_and_dims=((lat_coord, 0), (lon_coord, 1)),
+        var_name="dummy_cube",
+        units="1",
+    )
