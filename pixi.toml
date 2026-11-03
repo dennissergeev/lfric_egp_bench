@@ -29,6 +29,7 @@ click = ">=8.4.2,<9"
 iris-esmf-regrid = ">=0.15.0,<0.16"
 adjusttext = ">=1.4.0,<2"
 seaborn = ">=0.13.2,<0.14"
+nbconvert = ">=7.17.2,<8"
 
 [pypi-dependencies]
 ncdump-rich = ">=0.5.2, <0.6"

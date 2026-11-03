@@ -3,15 +3,21 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Literal
 
+import iris
 import numpy as np
 import paths
 from aeolus.const import init_const
 from aeolus.const.const import ConstContainer
 from aeolus.coord import ensure_bounds
-from aeolus.lfric import add_equally_spaced_height_coord, fix_time_coord
+from aeolus.lfric import (
+    add_equally_spaced_height_coord,
+    fix_time_coord,
+    load_lfric_raw,
+)
 from aeolus.model import lfric, um
 from aeolus.model.base import Model
 from iris.coord_systems import GeogCS
@@ -422,6 +428,43 @@ class Diag:
     kw_plt: dict = field(default_factory=dict)
 
 
+def setup_pressure_axis(ax, lim=None, *, linear=False):
+    """Make the y axis a pressure axis increasing downwards, log by default.
+
+    `lim` is the (min, max) pressure range, applied top-down.
+    """
+    ax.set_ylabel("Pressure [bar]")
+    ax.set_yscale("linear" if linear else "log")
+    if lim is None:
+        ax.invert_yaxis()
+    else:
+        ax.set_ylim(max(lim), min(lim))
+
+
+def setup_latitude_axis(ax, which="y"):
+    """Label and limit a latitude axis."""
+    getattr(ax, f"set_{which}label")("Latitude [deg]")
+    getattr(ax, f"set_{which}lim")(-90, 90)
+
+
+def setup_longitude_axis(ax, which="x"):
+    """Label and limit a longitude axis."""
+    getattr(ax, f"set_{which}label")("Longitude [deg]")
+    getattr(ax, f"set_{which}lim")(0, 360)
+
+
+def interp_to_levels_of(cube, target, model=lfric):
+    """Interpolate `cube` (e.g. air pressure) to the vertical levels of `target`.
+
+    Used to get the pressure on the same grid as a diagnostic,
+    just in case they are on different levels.
+    """
+    return cube.interpolate(
+        [(model.z, target.coord(model.z).points)],
+        iris.analysis.Linear(),  # type: ignore
+    )
+
+
 def replace_z_coord(cube, remove_level_coord=False, inplace=False, model=lfric):
     """
     Replace levels coordinate with level_height.
@@ -474,6 +517,37 @@ def lfric_callback_uniform_height(cube, field, filename, model_top_height):
         pass
     if cube.units == "ms-1":
         cube.units = "m s-1"
+
+
+def file_end_date(fname):
+    """End date of the output in a file named like `*_YYYYMMDD-YYYYMMDD.nc`."""
+    return datetime.strptime(Path(fname).stem.split("_")[-1].split("-")[1], "%Y%m%d")
+
+
+def load_exp_days(
+    exp_key, start_day, end_day, file_glob=LATLON_GLOB, experiments=EXPERIMENTS
+):
+    """Load the output files of one experiment covering days `start_day`-`end_day`.
+
+    Files are found in `data/lfric/<group>/<label>/`; a file is included if
+    its end date is within (`start_day`, `end_day`].
+    """
+    exp = experiments[exp_key]
+    fnames = sorted((paths.data_work / "lfric" / exp.group / exp.label).glob(file_glob))
+    if not fnames:
+        raise FileNotFoundError(f"No {file_glob} files found for {exp_key}")
+    origin = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")
+    end_days = [(file_end_date(f) - origin).days for f in fnames]
+    if max(end_days) < end_day:
+        raise ValueError(f"{exp_key} output ends on day {max(end_days)} < {end_day}")
+    fnames = [f for f, d in zip(fnames, end_days) if start_day < d <= end_day]
+    return load_lfric_raw(
+        fnames,
+        callback=partial(
+            lfric_callback_uniform_height,
+            model_top_height=exp.const.domain_height.data,
+        ),
+    )
 
 
 def add_time_coord(cube, field, filename, time_origin=TIME_ORIGIN):

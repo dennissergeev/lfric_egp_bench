@@ -46,7 +46,11 @@ from common import (
     KW_REF_LINE,
     LATLON_GLOB,
     PA_TO_BAR,
+    interp_to_levels_of,
     lfric_callback_uniform_height,
+    setup_latitude_axis,
+    setup_longitude_axis,
+    setup_pressure_axis,
 )
 
 
@@ -111,25 +115,6 @@ def make_norm(opts):
     return mcol.TwoSlopeNorm(vcenter=opts.vcenter, vmin=opts.vmin, vmax=opts.vmax)
 
 
-def setup_pressure_axis(ax, lim=None, *, linear=False):
-    """Make the y axis a pressure axis increasing downwards, log by default.
-
-    `lim` is the (min, max) pressure range, applied top-down.
-    """
-    ax.set_ylabel("Pressure [bar]")
-    ax.set_yscale("linear" if linear else "log")
-    if lim is None:
-        ax.invert_yaxis()
-    else:
-        ax.set_ylim(max(lim), min(lim))
-
-
-def setup_latitude_axis(ax, which="y"):
-    """Label and limit a latitude axis."""
-    getattr(ax, f"set_{which}label")("Latitude [deg]")
-    getattr(ax, f"set_{which}lim")(-90, 90)
-
-
 def plot_quicklook(dset, exp_key, opts):
     """Assemble the four-panel quick-look figure for one experiment."""
     exp = EXPERIMENTS[exp_key]
@@ -142,19 +127,13 @@ def plot_quicklook(dset, exp_key, opts):
     # Interpolate pressure to the vertical grid of `var`
     # just in case they are on different levels
     pres = extract_cube(dset, "pres")
-    pres_interp_var = pres.interpolate(
-        [(lfric.z, var.coord(lfric.z).points)],
-        iris.analysis.Linear(),  # type: ignore
-    )
+    pres_interp_var = interp_to_levels_of(pres, var)
     var_plev = interp_cube_from_height_to_pressure_levels(
         var, pres_interp_var, [opts.target_pressure]
     )
 
     if opts.do_stream:
-        pres_interp_uv = pres.interpolate(
-            [(lfric.z, u.coord(lfric.z).points)],
-            iris.analysis.Linear(),  # type: ignore
-        )
+        pres_interp_uv = interp_to_levels_of(pres, u)
         u_plev = interp_cube_from_height_to_pressure_levels(
             u, pres_interp_uv, [opts.target_pressure]
         )
@@ -229,8 +208,7 @@ def plot_quicklook(dset, exp_key, opts):
     ax = axd["y-x"]
     ax.set_title(f"{opts.n_days_mean:.0f}-day mean, {target_bar:>5.2f} bar")
     setup_latitude_axis(ax)
-    ax.set_xlabel("Longitude [deg]")
-    ax.set_xlim(0, 360)
+    setup_longitude_axis(ax)
     im = getattr(ax, opts.method_plt)(
         lons,
         lats,
