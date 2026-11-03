@@ -391,6 +391,12 @@ GROUPS = {
         title="Deep Hot Jupiter",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group in ["dhj", "dhj_s"]],
     ),
+    "shj_dhj_all": Group(
+        title="Shallow & Deep Hot Jupiter",
+        simulations=[
+            k for k, v in EXPERIMENTS.items() if v.group in ["shj", "dhj", "dhj_s"]
+        ],
+    ),
     "hd209": Group(
         title="HD 209458b",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group == "hd209"],
