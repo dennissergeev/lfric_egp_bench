@@ -29,14 +29,23 @@ def main(exp_keys, host):
     for group, label in sorted(group_labels):
         local_dir = paths.data_work / "lfric" / group / label
         local_dir.mkdir(parents=True, exist_ok=True)
-        remote_glob = f"{remote_cylc_run}/{group}/{label}/work/20*/lfric_atm/lfric_*.nc"
-        try:
-            subprocess.run(
-                ["rsync", "-amPvz", f"{host}:{remote_glob}", f"{local_dir}/"],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            click.echo(f"rsync failed for {group}/{label}: exit code {e.returncode}", err=True)
+        remote_exp = f"{host}:{remote_cylc_run}/{group}/{label}"
+        # NetCDF output has unique names per cycle, so it is stored flat.
+        output = [f"{remote_exp}/work/20*/lfric_atm/lfric_*.nc"]
+        # These names repeat in every cycle, so keep work/<cycle>/lfric_atm/ locally
+        # (--relative recreates the path after the "/./" marker).
+        cycle_files = [
+            f"{remote_exp}/./work/20*/lfric_atm/{name}"
+            for name in ("configuration.nml",)  # "PET*.Log")
+        ]
+        for flags, sources in (("-amPvz", output), ("-amPvzR", cycle_files)):
+            try:
+                subprocess.run(["rsync", flags, *sources, f"{local_dir}/"], check=True)
+            except subprocess.CalledProcessError as e:
+                click.echo(
+                    f"rsync failed for {group}/{label}: exit code {e.returncode}",
+                    err=True,
+                )
 
 
 if __name__ == "__main__":

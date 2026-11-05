@@ -81,6 +81,7 @@ class Experiment:
     timestep: float  # seconds
     resolution: str  # e.g. 'C48' or '144x90'
     n_levels: int  # number of layers
+    n_radstep: int | None = None  # number of radiative calls per time step
     stretch_factor: float = 1.0  # 1 is no stretching
     target_lon: float = 0.0  # focus of stretching
     category: str = ""
@@ -123,6 +124,7 @@ HD209_BASE = Experiment(
     label="base_c48",
     run_length=1200,
     timestep=30,
+    n_radstep=4,
     resolution="C48",
     n_levels=66,
     category="rt",
@@ -201,56 +203,59 @@ EXPERIMENTS = {
         kw_plt={"color": "C4", "linestyle": "dashed", "dash_capstyle": "round"},
     ),
     # hd209
-    "hd209_base_c48": replace(HD209_BASE),
-    "hd209_int_flux_zero": replace(
-        HD209_BASE, label="int_flux_zero", internal_flux=InternalFlux(value=0.0)
-    ),
-    "hd209_rand_t100k_nf20_tau1e5": replace(
-        HD209_BASE,
-        label="rand_t100k_nf20_tau1e5",
-        internal_flux=InternalFlux(method="random_harmonics"),
-    ),
-    "hd209_rand_t300k_nf20_tau1e5": replace(
-        HD209_BASE,
-        label="rand_t300k_nf20_tau1e5",
-        internal_flux=InternalFlux(method="random_harmonics", value=459.299727),
-    ),
-    "hd209_rand_t100k_nf20_tau1e5_amp5e-5": replace(
-        HD209_BASE,
-        label="rand_t100k_nf20_tau1e5_amp5e-5",
-        internal_flux=InternalFlux(method="random_harmonics", heating_amplitude=5e-5),
-    ),
-    "hd209_rand_t100k_nf20_tau1e5_amp5e-5_sclht4": replace(
-        HD209_BASE,
-        label="rand_t100k_nf20_tau1e5_amp5e-5_sclht4",
-        internal_flux=InternalFlux(
-            method="random_harmonics", heating_amplitude=5e-5, scale_heights=4.0
-        ),
-    ),
-    "hd209_rand_t100k_nf20_tau1e5_amp1e-3_sclht4": replace(
-        HD209_BASE,
-        label="rand_t100k_nf20_tau1e5_amp1e-3_sclht4",
-        internal_flux=InternalFlux(
-            method="random_harmonics", heating_amplitude=1e-3, scale_heights=4.0
-        ),
-    ),
+    "hd209_dt30_nrad3": replace(HD209_BASE, label="dt30_nrad3", n_radstep=3),
+    "hd209_dt30_nrad4": replace(HD209_BASE, label="dt30_nrad4"),
+    "hd209_dt30_nrad5": replace(HD209_BASE, label="dt30_nrad5", n_radstep=5),
+    # "hd209_int_flux_zero": replace(
+    #     HD209_BASE, label="int_flux_zero", internal_flux=InternalFlux(value=0.0)
+    # ),
+    # "hd209_rand_t100k_nf20_tau1e5": replace(
+    #     HD209_BASE,
+    #     label="rand_t100k_nf20_tau1e5",
+    #     internal_flux=InternalFlux(method="random_harmonics"),
+    # ),
+    # "hd209_rand_t300k_nf20_tau1e5": replace(
+    #     HD209_BASE,
+    #     label="rand_t300k_nf20_tau1e5",
+    #     internal_flux=InternalFlux(method="random_harmonics", value=459.299727),
+    # ),
+    # "hd209_rand_t100k_nf20_tau1e5_amp5e-5": replace(
+    #     HD209_BASE,
+    #     label="rand_t100k_nf20_tau1e5_amp5e-5",
+    #     internal_flux=InternalFlux(method="random_harmonics", heating_amplitude=5e-5),
+    # ),
+    # "hd209_rand_t100k_nf20_tau1e5_amp5e-5_sclht4": replace(
+    #     HD209_BASE,
+    #     label="rand_t100k_nf20_tau1e5_amp5e-5_sclht4",
+    #     internal_flux=InternalFlux(
+    #         method="random_harmonics", heating_amplitude=5e-5, scale_heights=4.0
+    #     ),
+    # ),
+    # "hd209_rand_t100k_nf20_tau1e5_amp1e-3_sclht4": replace(
+    #     HD209_BASE,
+    #     label="rand_t100k_nf20_tau1e5_amp1e-3_sclht4",
+    #     internal_flux=InternalFlux(
+    #         method="random_harmonics", heating_amplitude=1e-3, scale_heights=4.0
+    #     ),
+    # ),
     "hd209_rand_t100k_nf20_tau1e5_amp1e-2_sclht6": replace(
         HD209_BASE,
+        group="hd209_rand",
         label="rand_t100k_nf20_tau1e5_amp1e-2_sclht6",
         internal_flux=InternalFlux(
             method="random_harmonics", heating_amplitude=1e-2, scale_heights=6.0
         ),
     ),
-    "hd209_base_c48_nrad4": replace(
-        HD209_BASE,
-        label="base_c48_nrad4",
-        run_length=1200,
-    ),
-    "hd209_base_c48_nrad4_new": replace(
-        HD209_BASE,
-        label="base_c48_nrad4_new",
-        run_length=12000,
-    ),
+    # "hd209_base_c48_nrad4": replace(
+    #     HD209_BASE,
+    #     label="base_c48_nrad4",
+    #     run_length=1200,
+    # ),
+    # "hd209_base_c48_nrad4_new": replace(
+    #     HD209_BASE,
+    #     label="base_c48_nrad4_new",
+    #     run_length=12000,
+    # ),
 }
 
 
@@ -403,9 +408,15 @@ GROUPS = {
             k for k, v in EXPERIMENTS.items() if v.group in ["shj", "dhj", "dhj_s"]
         ],
     ),
+    "hd209_all": Group(
+        title="HD 209458b (all)",
+        simulations=[
+            k for k, v in EXPERIMENTS.items() if v.group in ["hd209", "hd209_rand"]
+        ],
+    ),
     "hd209": Group(
         title="HD 209458b",
-        simulations=[k for k, v in EXPERIMENTS.items() if v.group == "hd209"],
+        simulations=[k for k, v in EXPERIMENTS.items() if v.group in ["hd209"]],
     ),
 }
 
