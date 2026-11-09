@@ -24,6 +24,7 @@ from iris.coord_systems import GeogCS
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
 from iris.exceptions import CoordinateNotFoundError as CoNotFound
+from iris.experimental import stratify
 from iris.fileformats.pp import EARTH_RADIUS
 from iris.util import new_axis, promote_aux_coord_to_dim_coord
 
@@ -32,6 +33,8 @@ TIME_ORIGIN = "2000-01-01 00:00:00"
 PA_TO_BAR = 1e-5
 # Diagnostic files written by XIOS on the regular lat-lon grid
 LATLON_GLOB = "lfric_diag_latlon*.nc"
+# Levels of $\sigma_p=p/p_s$, close to the table A1 in Mayne et al. (2014)
+SIGMA_LEVELS = np.linspace(1, 0.01, 34)
 # Line style of the reference lines marking the target pressure and mean period
 KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
 # Global attributes common to all netCDF files written by the project scripts
@@ -439,12 +442,12 @@ class Diag:
     kw_plt: dict = field(default_factory=dict)
 
 
-def setup_pressure_axis(ax, lim=None, *, linear=False):
+def setup_pressure_axis(ax, lim=None, *, linear=False, label="Pressure [bar]"):
     """Make the y axis a pressure axis increasing downwards, log by default.
 
     `lim` is the (min, max) pressure range, applied top-down.
     """
-    ax.set_ylabel("Pressure [bar]")
+    ax.set_ylabel(label)
     ax.set_yscale("linear" if linear else "log")
     if lim is None:
         ax.invert_yaxis()
@@ -473,6 +476,31 @@ def interp_to_levels_of(cube, target, model=lfric):
     return cube.interpolate(
         [(model.z, target.coord(model.z).points)],
         iris.analysis.Linear(),  # type: ignore
+    )
+
+
+def interp_to_sigma_levels(cube, pres, levels=SIGMA_LEVELS, model=lfric):
+    """Interpolate `cube` to surfaces of $\\sigma_p=p/p_s$, extrapolating linearly.
+
+    `pres` is the air pressure on the same horizontal grid and including the
+    surface level (z=0), which gives the surface pressure $p_s$. The vertical
+    dimension of the output is in the same position as in `cube`.
+    """
+    p_sfc = pres.extract(iris.Constraint(**{model.z: 0}))
+    pres_on_levels = interp_to_levels_of(pres, cube, model=model)
+    sigma_p = pres_on_levels.copy(data=pres_on_levels.data / p_sfc.data)
+    sigma_p.units = "1"
+    sigma_p.rename(model.s)
+    return stratify.relevel(
+        cube,
+        sigma_p,
+        levels,
+        axis=model.z,
+        interpolator=partial(
+            stratify.stratify.interpolate,
+            interpolation=stratify.stratify.INTERPOLATE_LINEAR,
+            extrapolation=stratify.stratify.EXTRAPOLATE_LINEAR,
+        ),
     )
 
 
