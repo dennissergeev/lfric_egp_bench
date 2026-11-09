@@ -8,11 +8,14 @@ from pathlib import Path
 from typing import Literal
 
 import iris
+import matplotlib.colors as mcol
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import paths
 from aeolus.const import init_const
 from aeolus.const.const import ConstContainer
-from aeolus.coord import ensure_bounds
+from aeolus.coord import ensure_bounds, interp_cube_from_height_to_pressure_levels
 from aeolus.lfric import (
     add_equally_spaced_height_coord,
     fix_time_coord,
@@ -442,6 +445,63 @@ class Diag:
     kw_plt: dict = field(default_factory=dict)
 
 
+def contour_levels(vmin, vmax, n=7):
+    """About `n` nicely rounded levels within [`vmin`, `vmax`]."""
+    levels = mticker.MaxNLocator(nbins=max(n, 1)).tick_values(vmin, vmax)
+    return levels[(levels >= vmin) & (levels <= vmax)]
+
+
+def common_kw_plt(diag, cubes, n_contours=7):
+    """Colour normalisation and contour levels shared by all experiment panels.
+
+    If `diag.cnorm`, the colours are centred on 0: if both `vmin` and `vmax` are set
+    in `diag.kw_plt`, they are used with `TwoSlopeNorm`; otherwise the limits are
+    symmetric about 0 (e.g. `vmin = -vmax` if only `vmax` is set).
+    Discrete colours can be set by `levels` in `diag.kw_plt`.
+
+    Returns
+    -------
+    kw_plt: dict
+        Keyword arguments for the shaded plot.
+    levels: numpy.ndarray
+        Levels of the contour lines.
+    """
+    kw = {"rasterized": True, **diag.kw_plt}
+    vmin, vmax = kw.pop("vmin", None), kw.pop("vmax", None)
+    if "levels" in kw:
+        levels = np.asarray(kw.pop("levels"))
+        kw["norm"] = mcol.BoundaryNorm(
+            levels, ncolors=plt.get_cmap(kw.get("cmap")).N, extend="both"
+        )
+        return kw, levels
+    if diag.cnorm and vmin is not None and vmax is not None:
+        if not vmin < 0 < vmax:
+            raise ValueError(f"{diag.title}: cnorm=True needs vmin < 0 < vmax")
+        kw["norm"] = mcol.TwoSlopeNorm(vcenter=0, vmin=vmin, vmax=vmax)
+        # Contours on either side of 0, so that both halves are equally resolved
+        n_half = (n_contours + 1) // 2
+        levels = np.union1d(
+            contour_levels(vmin, 0, n_half), contour_levels(0, vmax, n_half)
+        )
+        return kw, levels
+    if diag.cnorm:
+        # Symmetric limits for diverging colour maps
+        if vmax is None:
+            vmax = (
+                -vmin
+                if vmin is not None
+                else max(float(abs(c.data).max()) for c in cubes)
+            )
+        vmin = -vmax
+    else:
+        if vmin is None:
+            vmin = min(float(c.data.min()) for c in cubes)
+        if vmax is None:
+            vmax = max(float(c.data.max()) for c in cubes)
+    kw["norm"] = mcol.Normalize(vmin=vmin, vmax=vmax)
+    return kw, contour_levels(vmin, vmax, n_contours)
+
+
 def setup_pressure_axis(ax, lim=None, *, linear=False, label="Pressure [bar]"):
     """Make the y axis a pressure axis increasing downwards, log by default.
 
@@ -476,6 +536,16 @@ def interp_to_levels_of(cube, target, model=lfric):
     return cube.interpolate(
         [(model.z, target.coord(model.z).points)],
         iris.analysis.Linear(),  # type: ignore
+    )
+
+
+def interp_to_plev(cube, pres, level, model=lfric):
+    """Interpolate `cube` to a pressure level (in the units of the `pres` cube)."""
+    pres_on_levels = interp_to_levels_of(pres, cube, model=model)
+    # The name of the new coordinate comes from the primary name of the cube
+    pres_on_levels.rename(model.pres)
+    return interp_cube_from_height_to_pressure_levels(
+        cube, pres_on_levels, levels=[level], model=model
     )
 
 
