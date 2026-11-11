@@ -521,10 +521,10 @@ def setup_latitude_axis(ax, which="y"):
     getattr(ax, f"set_{which}lim")(-90, 90)
 
 
-def setup_longitude_axis(ax, which="x"):
-    """Label and limit a longitude axis."""
+def setup_longitude_axis(ax, which="x", pm180=False):
+    """Label and limit a longitude axis, to -180...180 if `pm180` or 0...360."""
     getattr(ax, f"set_{which}label")("Longitude [deg]")
-    getattr(ax, f"set_{which}lim")(0, 360)
+    getattr(ax, f"set_{which}lim")(*((-180, 180) if pm180 else (0, 360)))
 
 
 def interp_to_levels_of(cube, target, model=lfric):

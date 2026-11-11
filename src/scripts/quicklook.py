@@ -38,7 +38,7 @@ from aeolus.calc import last_n_day_mean, zonal_mean
 from aeolus.coord import get_cube_rel_days, interp_cube_from_height_to_pressure_levels
 from aeolus.lfric import load_lfric_raw
 from aeolus.model import lfric
-from aeolus.plot import figsave, stream
+from aeolus.plot import figsave, stream, subplot_label_generator
 from common import (
     CATEGORIES,
     EXPERIMENTS,
@@ -167,8 +167,10 @@ def plot_quicklook(dset, exp_key, opts):
         gridspec_kw={"width_ratios": [1, 1, 0.02]},
     )
 
+    iletters = subplot_label_generator()
+
     ax = axd["z-y"]
-    ax.set_title(f"{opts.n_days_mean:.0f}-day and zonal mean")
+    ax.set_title(f"({next(iletters)}) {opts.n_days_mean:.0f}-day and zonal mean")
     setup_latitude_axis(ax, which="x")
     setup_pressure_axis(ax, pres_lim, linear=opts.linear_pressure)
     im = getattr(ax, opts.method_plt)(lats_zy, pres_bar_zy, var_zm_tm, **kw_plt)
@@ -185,7 +187,7 @@ def plot_quicklook(dset, exp_key, opts):
     ax.axhline(target_bar, **KW_REF_LINE)
 
     ax = axd["t-z"]
-    ax.set_title("Zonal mean, equator")
+    ax.set_title(f"({next(iletters)}) Zonal mean, equator")
     setup_pressure_axis(ax, pres_lim, linear=opts.linear_pressure)
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
@@ -206,7 +208,9 @@ def plot_quicklook(dset, exp_key, opts):
     )
 
     ax = axd["y-x"]
-    ax.set_title(f"{opts.n_days_mean:.0f}-day mean, {target_bar:>5.2f} bar")
+    ax.set_title(
+        f"({next(iletters)}) {opts.n_days_mean:.0f}-day mean, {target_bar:>5.2f} bar"
+    )
     setup_latitude_axis(ax)
     setup_longitude_axis(ax)
     im = getattr(ax, opts.method_plt)(
@@ -227,7 +231,7 @@ def plot_quicklook(dset, exp_key, opts):
         )
 
     ax = axd["t-y"]
-    ax.set_title(f"Zonal mean, {target_bar:>5.2f} bar")
+    ax.set_title(f"({next(iletters)}) Zonal mean, {target_bar:>5.2f} bar")
     setup_latitude_axis(ax)
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
