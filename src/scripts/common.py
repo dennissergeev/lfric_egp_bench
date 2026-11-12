@@ -393,35 +393,35 @@ class Group:
 
 GROUPS = {
     "shj": Group(
-        title="Shallow Hot Jupiter",
+        title="Shallow Hot Jupiter (Temperature Forcing)",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group == "shj"],
     ),
     "dhj": Group(
-        title="Deep Hot Jupiter",
+        title="Deep Hot Jupiter (Temperature Forcing)",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group == "dhj"],
     ),
     "dhj_s": Group(
-        title="Deep Hot Jupiter, Stretched Mesh",
+        title="Deep Hot Jupiter (Temperature Forcing, Stretched Mesh)",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group == "dhj_s"],
     ),
     "dhj_all": Group(
-        title="Deep Hot Jupiter",
+        title="Deep Hot Jupiter (Temperature Forcing)",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group in ["dhj", "dhj_s"]],
     ),
     "shj_dhj_all": Group(
-        title="Shallow & Deep Hot Jupiter",
+        title="Shallow & Deep Hot Jupiter (Temperature Forcing)",
         simulations=[
             k for k, v in EXPERIMENTS.items() if v.group in ["shj", "dhj", "dhj_s"]
         ],
     ),
     "hd209_all": Group(
-        title="HD 209458b (all)",
+        title="HD 209458b (Radiative Transfer)",
         simulations=[
             k for k, v in EXPERIMENTS.items() if v.group in ["hd209", "hd209_rand"]
         ],
     ),
     "hd209": Group(
-        title="HD 209458b",
+        title="HD 209458b (Radiative Transfer)",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group in ["hd209"]],
     ),
 }
@@ -500,6 +500,37 @@ def common_kw_plt(diag, cubes, n_contours=7):
             vmax = max(float(c.data.max()) for c in cubes)
     kw["norm"] = mcol.Normalize(vmin=vmin, vmax=vmax)
     return kw, contour_levels(vmin, vmax, n_contours)
+
+
+def align_cbar_with_axes(cbar, axs, n_draws=3):
+    """
+    Freeze the figure layout and make a colour bar as tall as a group of axes.
+
+    With fixed-aspect axes (e.g. maps), the layout engines do not make colour bars
+    in their own gridspec cells as tall as the axes. This draws the figure to
+    apply the layout, switches the layout engine off, so that the positions do not
+    change any more, and stretches the colour bar, including its extensions,
+    to the vertical extent of the axes.
+
+    Parameters
+    ----------
+    cbar: matplotlib.colorbar.Colorbar
+        Vertical colour bar.
+    axs: sequence of matplotlib.axes.Axes
+        Axes to align the colour bar with.
+    n_draws: int, optional
+        Number of draws to let the layout settle (it depends on the previous one,
+        e.g. through cartopy gridline labels).
+    """
+    fig = cbar.ax.figure
+    for _ in range(n_draws):
+        fig.canvas.draw()
+    fig.set_layout_engine("none")
+    y0 = min(ax.get_position().y0 for ax in axs)
+    y1 = max(ax.get_position().y1 for ax in axs)
+    # The position includes the extensions: the colour bar is shrunk to fit them
+    pos = cbar.ax.get_position()
+    cbar.ax.set_position([pos.x0, y0, pos.width, y1 - y0])
 
 
 def setup_pressure_axis(ax, lim=None, *, linear=False, label="Pressure [bar]"):

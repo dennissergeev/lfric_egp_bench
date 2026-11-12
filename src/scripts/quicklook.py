@@ -54,7 +54,6 @@ from common import (
 )
 
 
-
 @dataclass
 class PlotOpts:
     """Options controlling what is plotted and how."""
@@ -170,7 +169,8 @@ def plot_quicklook(dset, exp_key, opts):
     iletters = subplot_label_generator()
 
     ax = axd["z-y"]
-    ax.set_title(f"({next(iletters)}) {opts.n_days_mean:.0f}-day and zonal mean")
+    ax.set_title(f"({next(iletters)})", loc="left")
+    ax.set_title(f"{opts.n_days_mean:.0f}-day and zonal mean")
     setup_latitude_axis(ax, which="x")
     setup_pressure_axis(ax, pres_lim, linear=opts.linear_pressure)
     im = getattr(ax, opts.method_plt)(lats_zy, pres_bar_zy, var_zm_tm, **kw_plt)
@@ -187,7 +187,8 @@ def plot_quicklook(dset, exp_key, opts):
     ax.axhline(target_bar, **KW_REF_LINE)
 
     ax = axd["t-z"]
-    ax.set_title(f"({next(iletters)}) Zonal mean, equator")
+    ax.set_title(f"({next(iletters)})", loc="left")
+    ax.set_title("Zonal mean, equator")
     setup_pressure_axis(ax, pres_lim, linear=opts.linear_pressure)
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
@@ -200,16 +201,12 @@ def plot_quicklook(dset, exp_key, opts):
         **kw_plt,
     )
     ax.axhline(target_bar, **KW_REF_LINE)
-    ax.axvspan(
-        0,
-        sim_days - opts.n_days_mean,
-        color="k",
-        alpha=0.1,
-    )
+    ax.axvline(sim_days - opts.n_days_mean, **KW_REF_LINE)
 
     ax = axd["y-x"]
+    ax.set_title(f"({next(iletters)})", loc="left")
     ax.set_title(
-        f"({next(iletters)}) {opts.n_days_mean:.0f}-day mean, {target_bar:>5.2f} bar"
+        f"{opts.n_days_mean:.0f}-day mean, {target_bar:>5.2f} bar",
     )
     setup_latitude_axis(ax)
     setup_longitude_axis(ax)
@@ -231,23 +228,19 @@ def plot_quicklook(dset, exp_key, opts):
         )
 
     ax = axd["t-y"]
-    ax.set_title(f"({next(iletters)}) Zonal mean, {target_bar:>5.2f} bar")
+    ax.set_title(f"({next(iletters)})", loc="left")
+    ax.set_title(f"Zonal mean, {target_bar:>5.2f} bar")
     setup_latitude_axis(ax)
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
     im = getattr(ax, opts.method_plt)(days, lats, zonal_mean(var_plev).data.T, **kw_plt)
-    ax.axvspan(
-        0,
-        sim_days - opts.n_days_mean,
-        color="k",
-        alpha=0.1,
-    )
+    ax.axvline(sim_days - opts.n_days_mean, **KW_REF_LINE)
 
     fig.colorbar(im, cax=axd["cbar"], orientation="vertical")
     fig.suptitle(
         "\n".join([
             f"{exp.title} | LFRic-Atmosphere with {CATEGORIES[exp.category].title}",
-            f"{var.name()} / {var.units}",
+            f"{var.name()} [{var.units}]",
         ])
     )
     return fig
@@ -299,7 +292,7 @@ def plot_quicklook(dset, exp_key, opts):
     "-n",
     "--n-days-mean",
     type=float,
-    default=300.0,
+    default=200.0,
     help="Length of the averaging period at the end of the run [days].",
 )
 @click.option(

@@ -14,10 +14,9 @@ from aeolus.const import init_const
 from aeolus.io import load_data, save_cubelist
 from aeolus.log import create_logger
 from aeolus.model import lfric
-from common import MODELS
+from common import MODELS, SIGMA_LEVELS
 import iris
 from iris.experimental import stratify
-import numpy as np
 
 # Local modules
 import paths
@@ -32,9 +31,6 @@ INTERPOLATOR = partial(
     interpolation=stratify.stratify.INTERPOLATE_LINEAR,
     extrapolation=stratify.stratify.EXTRAPOLATE_LINEAR,
 )
-# Create an array of $\sigma_p=p/p_s$ levels,
-# close to the table A1 in Mayne et al. (2014).
-SIGMA_LEVELS = np.linspace(1, 0.01, 34)
 
 
 def parse_args(args=None):
