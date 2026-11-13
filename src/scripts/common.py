@@ -90,6 +90,7 @@ class Experiment:
     n_radstep: int | None = None  # number of radiative calls per time step
     stretch_factor: float = 1.0  # 1 is no stretching
     target_lon: float = 0.0  # focus of stretching
+    substellar_lon: float = 0.0  # longitude of the substellar point (deg)
     category: str = ""
     internal_flux: InternalFlux | None = None
     kw_plt: dict = field(default_factory=dict)
@@ -128,6 +129,7 @@ HD209_BASE = Experiment(
     const=init_const("hd209458b", directory=paths.const),
     group="hd209",
     label="base_c48",
+    substellar_lon=180.0,
     run_length=1200,
     timestep=30,
     n_radstep=4,
