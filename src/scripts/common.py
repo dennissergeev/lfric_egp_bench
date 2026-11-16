@@ -7,6 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import Literal
 
+import f90nml
 import iris
 import matplotlib.colors as mcol
 import matplotlib.pyplot as plt
@@ -690,6 +691,22 @@ def load_exp_days(
             model_top_height=exp.const.domain_height.data,
         ),
     )
+
+
+def read_exp_namelist(exp_key, group=None, experiments=EXPERIMENTS):
+    """Read the LFRic namelist an experiment was run with.
+
+    The namelist is read from the first `work/*/lfric_atm/configuration.nml`
+    in `data/lfric/<group>/<label>/`. If `group` is given (e.g. "planet"),
+    only that namelist group is returned (e.g. with `rd`, `cp`, `p_zero`).
+    """
+    exp = experiments[exp_key]
+    exp_dir = paths.data_work / "lfric" / exp.group / exp.label
+    fnames = sorted((exp_dir / "work").glob("*/lfric_atm/configuration.nml"))
+    if not fnames:
+        raise FileNotFoundError(f"No configuration.nml found in {exp_dir / 'work'}")
+    nml = f90nml.read(fnames[0])
+    return nml if group is None else nml[group]
 
 
 def add_time_coord(cube, field, filename, time_origin=TIME_ORIGIN):
