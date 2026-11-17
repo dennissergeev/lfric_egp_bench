@@ -41,6 +41,14 @@ LATLON_GLOB = "lfric_diag_latlon*.nc"
 SIGMA_LEVELS = np.linspace(1, 0.01, 34)
 # Line style of the reference lines marking the target pressure and mean period
 KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
+# Colour maps used consistently across the plotting scripts
+CMAPS = {
+    "temp": "plasma",  # air temperature
+    "u": "RdYlBu_r",  # eastward (zonal) wind
+    "w": "PuOr_r",  # upward (vertical) wind
+    "vort": "seismic",  # vertical vorticity
+    "diff": "coolwarm",  # differences between experiments; alternative: cm.roma_r
+}
 # Global attributes common to all netCDF files written by the project scripts
 GLOBAL_ATTRS = {
     "project": PROJECT,
@@ -265,6 +273,16 @@ EXPERIMENTS = {
     #     label="base_c48_nrad4_new",
     #     run_length=12000,
     # ),
+}
+
+CTRL_EXPERIMENTS = {
+    "shj_ctrl": replace(SHJ_BASE, title="SHJ (Temperature Forcing)"),
+    "dhj_ctrl": replace(DHJ_BASE, title="DHJ (Temperature Forcing)"),
+    "hd209_ctrl": replace(
+        HD209_BASE,
+        label="dt30_nrad4",
+        title="HD 209458b (Radiative Transfer)",
+    ),
 }
 
 
@@ -547,6 +565,25 @@ def setup_pressure_axis(ax, lim=None, *, linear=False, label="Pressure [bar]"):
         ax.invert_yaxis()
     else:
         ax.set_ylim(max(lim), min(lim))
+
+
+_BAR_PREFIXES = {-6: "µ", -3: "m", 0: "", 3: "k", 6: "M"}
+
+
+def pres_level_str(pres_pa, *, prefix=True, fmt="{:g}"):
+    """Format a pressure level given in Pa as a human-readable string in bar.
+
+    With `prefix`, pick an SI prefix (µbar, mbar, bar, kbar, Mbar) so that the
+    number lies in [1, 1000), e.g. 1e2 Pa -> "1 mbar", 2.5e6 Pa -> "25 bar".
+    Otherwise, always use bar, e.g. 1e2 Pa -> "0.001 bar".
+    """
+    pres_bar = pres_pa * PA_TO_BAR
+    if not prefix or pres_bar == 0:
+        return f"{fmt.format(pres_bar)} bar"
+    exp3 = int(np.floor(np.log10(abs(pres_bar)) / 3) * 3)
+    exp3 = min(max(exp3, min(_BAR_PREFIXES)), max(_BAR_PREFIXES))
+    value = pres_bar / 10**exp3
+    return f"{fmt.format(round(value, 10))} {_BAR_PREFIXES[exp3]}bar"
 
 
 def setup_latitude_axis(ax, which="y"):

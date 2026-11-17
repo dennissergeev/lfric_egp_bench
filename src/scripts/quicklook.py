@@ -41,6 +41,7 @@ from aeolus.model import lfric
 from aeolus.plot import figsave, stream, subplot_label_generator
 from common import (
     CATEGORIES,
+    CMAPS,
     EXPERIMENTS,
     GROUPS,
     KW_REF_LINE,
@@ -53,6 +54,9 @@ from common import (
     setup_pressure_axis,
 )
 
+# Colour map of diagnostics without an entry in `common.CMAPS`
+DEFAULT_CMAP = "RdBu_r"
+
 
 @dataclass
 class PlotOpts:
@@ -64,7 +68,7 @@ class PlotOpts:
     sim_days: float | None
     method_plt: str
     n_contours: int
-    cmap: str
+    cmap: str | None
     norm_kind: str
     vmin: float | None
     vmax: float | None
@@ -158,7 +162,8 @@ def plot_quicklook(dset, exp_key, opts):
     pres_lim = (pres_bar_zy.min(), pres_bar_zy.max())
     target_bar = opts.target_pressure * PA_TO_BAR
     var_zm_tm = last_n_day_mean(zonal_mean(var), opts.n_days_mean).data  # type: ignore
-    kw_plt = {"norm": make_norm(opts), "cmap": opts.cmap, "rasterized": True}
+    cmap = opts.cmap or CMAPS.get(opts.diag_key, DEFAULT_CMAP)
+    kw_plt = {"norm": make_norm(opts), "cmap": cmap, "rasterized": True}
 
     fig = plt.figure(figsize=(6, 4), layout="constrained")
     axd = fig.subplot_mosaic(
@@ -314,7 +319,11 @@ def plot_quicklook(dset, exp_key, opts):
     default=7,
     help="Number of contours over the z-y panel; 0 to disable.",
 )
-@click.option("--cmap", default="RdBu_r", help="Colour map.")
+@click.option(
+    "--cmap",
+    default=None,
+    help=f"Colour map. Default: from `common.CMAPS` by diagnostic, else {DEFAULT_CMAP}.",
+)
 @click.option(
     "--norm",
     "norm_kind",
@@ -384,7 +393,7 @@ def main(exp_keys, group_keys, category_keys, file_glob, **kwargs):
     for exp_key in all_exp_keys:
         dset = load_dataset(exp_key, file_glob)
         fig = plot_quicklook(dset, exp_key, opts)
-        outdir = opts.outdir or paths.drafts  #  / exp_key
+        outdir = opts.outdir or paths.drafts / "quicklooks"
         figsave(fig, outdir / f"{exp_key}_{opts.diag_key}_quicklook")
         plt.close(fig)
 
