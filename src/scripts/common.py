@@ -145,7 +145,7 @@ HD209_BASE = Experiment(
     resolution="C48",
     n_levels=66,
     category="rt",
-    internal_flux=InternalFlux(),
+    internal_flux=InternalFlux(method="uniform"),
     kw_plt={"color": "C0", "linewidth": 1.5},
 )
 
@@ -220,9 +220,9 @@ EXPERIMENTS = {
         kw_plt={"color": "C4", "linestyle": "dashed", "dash_capstyle": "round"},
     ),
     # hd209
-    "hd209_dt30_nrad3": replace(HD209_BASE, label="dt30_nrad3", n_radstep=3),
+    # "hd209_dt30_nrad3": replace(HD209_BASE, label="dt30_nrad3", n_radstep=3),
     "hd209_dt30_nrad4": replace(HD209_BASE, label="dt30_nrad4"),
-    "hd209_dt30_nrad5": replace(HD209_BASE, label="dt30_nrad5", n_radstep=5),
+    # "hd209_dt30_nrad5": replace(HD209_BASE, label="dt30_nrad5", n_radstep=5),
     # "hd209_int_flux_zero": replace(
     #     HD209_BASE, label="int_flux_zero", internal_flux=InternalFlux(value=0.0)
     # ),
@@ -325,6 +325,12 @@ AWS_EXPERIMENTS = {
         run_length=100,
         timestep=50,
     ),
+}
+
+ALL_HD209_EXPERIMENTS = {
+    k: v
+    for k, v in {**EXPERIMENTS, **CTRL_EXPERIMENTS}.items()
+    if v.group in ["hd209", "hd209_rand"]
 }
 
 
