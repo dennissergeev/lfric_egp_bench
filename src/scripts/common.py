@@ -23,7 +23,6 @@ from aeolus.lfric import (
     load_lfric_raw,
 )
 from aeolus.model import lfric, um
-from aeolus.model.base import Model
 from iris.coord_systems import GeogCS
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
@@ -39,6 +38,9 @@ PA_TO_BAR = 1e-5
 LATLON_GLOB = "lfric_diag_latlon*.nc"
 # Levels of $\sigma_p=p/p_s$, close to the table A1 in Mayne et al. (2014)
 SIGMA_LEVELS = np.linspace(1, 0.01, 34)
+# Latitude and longitude (-180...180) axis ticks
+LAT_TICKS = np.arange(-90, 91, 30)
+LON_TICKS = np.arange(-180, 181, 60)
 # Line style of the reference lines marking the target pressure and mean period
 KW_REF_LINE = {"color": "k", "lw": 1, "ls": "--", "dash_capstyle": "round"}
 # Colour maps used consistently across the plotting scripts
@@ -79,7 +81,7 @@ class InternalFlux:
     value: float = 5.670367
     decorr_timescale: float = 100000.0
     wavenumber: int = 20
-    method: Literal["uniform", "non_uniform", "random_harmonics"] = "random_harmonics"
+    method: Literal["uniform", "non_uniform", "random_harmonics"] = "uniform"
     heating_amplitude: float = 0.0
     scale_heights: float = 1.0
 
@@ -137,7 +139,7 @@ HD209_BASE = Experiment(
     title="HD 209458b",
     const=init_const("hd209458b", directory=paths.const),
     group="hd209",
-    label="base_c48",
+    label="base",
     substellar_lon=180.0,
     run_length=1200,
     timestep=30,
@@ -145,7 +147,7 @@ HD209_BASE = Experiment(
     resolution="C48",
     n_levels=66,
     category="rt",
-    internal_flux=InternalFlux(method="uniform"),
+    internal_flux=InternalFlux(),
     kw_plt={"color": "C0", "linewidth": 1.5},
 )
 
@@ -221,7 +223,7 @@ EXPERIMENTS = {
     ),
     # hd209
     # "hd209_dt30_nrad3": replace(HD209_BASE, label="dt30_nrad3", n_radstep=3),
-    "hd209_dt30_nrad4": replace(HD209_BASE, label="dt30_nrad4"),
+    "hd209_base": replace(HD209_BASE),
     # "hd209_dt30_nrad5": replace(HD209_BASE, label="dt30_nrad5", n_radstep=5),
     # "hd209_int_flux_zero": replace(
     #     HD209_BASE, label="int_flux_zero", internal_flux=InternalFlux(value=0.0)
@@ -276,13 +278,10 @@ EXPERIMENTS = {
 }
 
 CTRL_EXPERIMENTS = {
+    # Duplicates with an alias title
     "shj_ctrl": replace(SHJ_BASE, title="SHJ (Temperature Forcing)"),
     "dhj_ctrl": replace(DHJ_BASE, title="DHJ (Temperature Forcing)"),
-    "hd209_ctrl": replace(
-        HD209_BASE,
-        label="dt30_nrad4",
-        title="HD 209458b (Radiative Transfer)",
-    ),
+    "hd209_ctrl": replace(HD209_BASE, title="HD 209458b (Radiative Transfer)"),
 }
 
 
@@ -324,87 +323,6 @@ AWS_EXPERIMENTS = {
         label="u-dr932-dhj-x86-fmoff",
         run_length=100,
         timestep=50,
-    ),
-}
-
-ALL_HD209_EXPERIMENTS = {
-    k: v
-    for k, v in {**EXPERIMENTS, **CTRL_EXPERIMENTS}.items()
-    if v.group in ["hd209", "hd209_rand"]
-}
-
-
-def exp_global_attrs(exp_key, experiments=EXPERIMENTS):
-    """Global attributes of a netCDF file describing one experiment."""
-    exp = experiments[exp_key]
-    attrs = {
-        **GLOBAL_ATTRS,
-        "name": exp_key,
-        "group": exp.group,
-        "label": exp.label,
-        "resolution": exp.resolution,
-        "n_levels": exp.n_levels,
-        "timestep_s": exp.timestep,
-        "run_length_days": exp.run_length,
-        "stretch_factor": exp.stretch_factor,
-        "target_lon": exp.target_lon,
-        "date_created": f"{datetime.now(UTC):%Y-%m-%dT%H:%M:%SZ}",
-    }
-    if exp.internal_flux is not None:
-        for key, value in vars(exp.internal_flux).items():
-            attrs[f"internal_flux_{key}"] = value
-    return attrs
-
-
-@dataclass
-class BenchModel:
-    """Model details."""
-
-    title: str
-    kw_plt: dict = field(default_factory=dict)
-    model: Model = lfric
-    details: str = ""
-    datetime_start: datetime = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")  # noqa: RUF009
-
-
-MODELS = {
-    "lfric": BenchModel(
-        model=lfric,
-        title="LFRic",
-        kw_plt={
-            "linestyle": "-",
-            "linewidth": 1.25,
-        },
-    ),
-    "um": BenchModel(
-        model=um,
-        title="UM",
-        kw_plt={
-            "linestyle": "--",
-            "linewidth": 0.75,
-            "dash_capstyle": "round",
-        },
-    ),
-}
-
-
-@dataclass
-class Category:
-    """Details for a category of simulations."""
-
-    title: str
-    simulations: Iterable
-    kw_plt: dict = field(default_factory=dict)
-
-
-CATEGORIES = {
-    "tf": Category(
-        title="Temperature Forcing",
-        simulations=(k for k in EXPERIMENTS if k.startswith(("shj", "dhj"))),
-    ),
-    "rt": Category(
-        title="Radiative Transfer",
-        simulations=(k for k in EXPERIMENTS if k.startswith("hd209")),
     ),
 }
 
@@ -451,7 +369,41 @@ GROUPS = {
         title="HD 209458b (Radiative Transfer)",
         simulations=[k for k, v in EXPERIMENTS.items() if v.group in ["hd209"]],
     ),
+    "ctrl": Group(
+        title="Control Experiments",
+        simulations=[*CTRL_EXPERIMENTS.keys()],
+    ),
+    "tf": Group(
+        title="Temperature Forcing",
+        simulations=(k for k, v in EXPERIMENTS.items() if v.category == "tf"),
+    ),
+    "rt": Group(
+        title="Radiative Transfer",
+        simulations=(k for k, v in EXPERIMENTS.items() if v.category == "rt"),
+    ),
 }
+
+
+def exp_global_attrs(exp_key, experiments=EXPERIMENTS):
+    """Global attributes of a netCDF file describing one experiment."""
+    exp = experiments[exp_key]
+    attrs = {
+        **GLOBAL_ATTRS,
+        "name": exp_key,
+        "group": exp.group,
+        "label": exp.label,
+        "resolution": exp.resolution,
+        "n_levels": exp.n_levels,
+        "timestep_s": exp.timestep,
+        "run_length_days": exp.run_length,
+        "stretch_factor": exp.stretch_factor,
+        "target_lon": exp.target_lon,
+        "date_created": f"{datetime.now(UTC):%Y-%m-%dT%H:%M:%SZ}",
+    }
+    if exp.internal_flux is not None:
+        for key, value in vars(exp.internal_flux).items():
+            attrs[f"internal_flux_{key}"] = value
+    return attrs
 
 
 def camembert_days_to_save(exp_label):
@@ -866,3 +818,35 @@ def create_gaussian_cube(nlat=None, nlon=None, n_gauss=None, pm180=False, radius
         var_name="dummy_cube",
         units="1",
     )
+
+
+# @dataclass
+# class BenchModel:
+#     """Model details."""
+
+#     title: str
+#     kw_plt: dict = field(default_factory=dict)
+#     model: Model = lfric
+#     details: str = ""
+#     datetime_start: datetime = datetime.strptime(TIME_ORIGIN, "%Y-%m-%d %H:%M:%S")
+
+
+# MODELS = {
+#     "lfric": BenchModel(
+#         model=lfric,
+#         title="LFRic",
+#         kw_plt={
+#             "linestyle": "-",
+#             "linewidth": 1.25,
+#         },
+#     ),
+#     "um": BenchModel(
+#         model=um,
+#         title="UM",
+#         kw_plt={
+#             "linestyle": "--",
+#             "linewidth": 0.75,
+#             "dash_capstyle": "round",
+#         },
+#     ),
+# }
