@@ -32,10 +32,11 @@ import click
 import dask.array as da
 import iris
 import matplotlib.colors as mcol
+import matplotlib.patheffects as mpe
 import matplotlib.pyplot as plt
 import numpy as np
 import paths
-from aeolus.calc import last_n_day_mean, zonal_mean
+from aeolus.calc import last_n_day_mean, superrotation_index, zonal_mean
 from aeolus.coord import (
     get_cube_rel_days,
     interp_cube_from_height_to_pressure_levels,
@@ -61,6 +62,14 @@ from common import (
 
 # Colour map of diagnostics without an entry in `common.CMAPS`
 DEFAULT_CMAP = "RdBu_r"
+# Panels that can show contours of the superrotation index
+SUPERROT_PANELS = ("z-y", "t-y")
+# Style of the superrotation index contours
+KW_SUPERROT = {
+    "colors": "C2",
+    "linewidths": 1,
+    "path_effects": [mpe.withStroke(linewidth=2.5, foreground="w")],
+}
 
 
 @dataclass
@@ -80,6 +89,8 @@ class PlotOpts:
     vcenter: float
     do_stream: bool
     linear_pressure: bool
+    superrot_panels: tuple[str, ...]
+    superrot_levels: tuple[float, ...]
     outdir: Path | None
 
 
@@ -135,6 +146,19 @@ def centre_on_lon(cube, lon0, model=lfric):
     return new
 
 
+def calc_superrotation_index(u, exp):
+    """Local superrotation index (Read, 1986) from the zonal wind cube."""
+    return superrotation_index(iris.cube.CubeList([u]), const=exp.const, model=lfric)
+
+
+def add_superrot_contours(ax, x, y, s_idx, opts):
+    """Overlay contours of the superrotation index on `ax`."""
+    cs = ax.contour(x, y, s_idx, levels=sorted(opts.superrot_levels), **KW_SUPERROT)
+    labels = ax.clabel(cs, fmt=lambda x: f"SI={x:g}", fontsize="xx-small")
+    for label in labels:
+        label.set_path_effects(KW_SUPERROT["path_effects"])
+
+
 def make_norm(opts):
     """Colour normalisation, either centred on `vcenter` or plain linear."""
     if opts.norm_kind == "linear":
@@ -167,9 +191,10 @@ def plot_quicklook(dset, exp_key, opts):
 
     var_plev = to_plev(var, pres_interp_var)
 
-    if opts.do_stream:
+    if opts.do_stream or "t-y" in opts.superrot_panels:
         pres_interp_uv = interp_to_levels_of(pres, u)
         u_plev = to_plev(u, pres_interp_uv)
+    if opts.do_stream:
         v_plev = to_plev(v, pres_interp_uv)
     # Vertical coordinate of the pressure-axis panels: the time and zonal
     # mean pressure on the (z, y) grid, used as such for the cross-section
@@ -218,6 +243,12 @@ def plot_quicklook(dset, exp_key, opts):
             linewidths=0.5,
         )
         ax.clabel(cs, fmt="%d", fontsize="xx-small")
+    if "z-y" in opts.superrot_panels:
+        # Zonal wind on the levels of `var`, to share the vertical coordinate
+        u_zm_tm = last_n_day_mean(zonal_mean(interp_to_levels_of(u, var)), opts.n_days_mean)  # type: ignore
+        add_superrot_contours(
+            ax, lats_zy, pres_bar_zy, calc_superrotation_index(u_zm_tm, exp).data, opts
+        )
     ax.axhline(target_bar, **KW_REF_LINE)
 
     ax = axd["t-z"]
@@ -273,6 +304,9 @@ def plot_quicklook(dset, exp_key, opts):
     ax.set_xlabel("Time [days]")
     ax.set_xlim(0, sim_days)
     im = getattr(ax, opts.method_plt)(days, lats, zonal_mean(var_plev).data.T, **kw_plt)
+    if "t-y" in opts.superrot_panels:
+        s_idx = calc_superrotation_index(zonal_mean(u_plev), exp)  # type: ignore
+        add_superrot_contours(ax, days, lats, iris.util.squeeze(s_idx).data.T, opts)  # type: ignore
     ax.axvline(sim_days - opts.n_days_mean, **KW_REF_LINE)
 
     fig.colorbar(im, cax=axd["cbar"], orientation="vertical")
@@ -378,6 +412,21 @@ def plot_quicklook(dset, exp_key, opts):
     help="Use a linear (instead of logarithmic) pressure axis.",
 )
 @click.option(
+    "--superrot",
+    "superrot_panels",
+    type=click.Choice(SUPERROT_PANELS),
+    multiple=True,
+    help="Overlay contours of the superrotation index on this panel; repeatable.",
+)
+@click.option(
+    "--superrot-level",
+    "superrot_levels",
+    type=float,
+    multiple=True,
+    default=(0.0,),
+    help="Contour level of the superrotation index; repeatable.",
+)
+@click.option(
     "--glob",
     "file_glob",
     default=LATLON_GLOB,
@@ -402,6 +451,7 @@ def main(exp_keys, group_keys, file_glob, **kwargs):
       quicklook.py -e hd209_rand_t100k_nf20_tau1e5
       quicklook.py -e shj_c48_l32 -d temp -p 10000 --norm linear --cmap magma
       quicklook.py -g shj -g dhj -d temp
+      quicklook.py -e shj_c48_l32 --superrot z-y --superrot t-y
       quicklook.py -e shj_c48_l32 --glob "lfric_diag_regr*.nc"
     """
     all_exp_keys = dict.fromkeys(exp_keys)
